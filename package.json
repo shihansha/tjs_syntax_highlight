@@ -1,0 +1,25 @@
+{
+    "name": "krkr-lang",
+    "displayName": "Krkr lang",
+    "description": "Krkr language server",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.64.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "krkr",
+            "aliases": ["Krkr", "krkr"],
+            "extensions": [".krkr"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "krkr",
+            "scopeName": "source.krkr",
+            "path": "./syntaxes/krkr.tmLanguage.json"
+        }]
+    }
+}
