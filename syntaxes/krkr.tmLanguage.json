@@ -3,20 +3,15 @@
 	"name": "Krkr",
 	"patterns": [
 		{
-			"include": "#preprocessor"
-		},
-		{
-			"include": "#comment"
-		},
-		{
 			"include": "#statement"
 		}
 	],
 	"repository": {
+
 		"declaration": {
 			"patterns": [
 				{
-					"include": "#type-declaration"
+					"include": "#class-declaration"
 				},
 				{
 					"include": "#method-declaration"
@@ -26,22 +21,6 @@
 				},
 				{
 					"include": "#variable-declaration"
-				},
-				{
-					"include": "#punctuation-semicolon"
-				}
-			]
-		},
-		"type-declaration": {
-			"patterns": [
-				{
-					"include": "#preprocessor"
-				},
-				{
-					"include": "#comment"
-				},
-				{
-					"include": "#class-delaration"
 				},
 				{
 					"include": "#punctuation-semicolon"
@@ -49,15 +28,48 @@
 			]
 		},
 		"class-declaration": {
+			"begin": "(?<!\\.)\\b(class)\\b\\s+((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.other.class.tjs.krkr"
+				},
+				"2": {
+					"name": "entity.name.class.tjs.krkr"
+				}
+			},
+			"end": "(?<=\\})",
 			"patterns": [
 				{
-					"include": "#method-declaration"
-				},
-				{
-					"include": "#variable-declaration"
-				},
-				{
-					"include": "#property-declaration"
+					"begin": "\\{",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.curlybrace.begin.tjs.krkr"
+						}
+					},
+					"end": "\\}",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.curlybrace.end.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#comment"
+						},
+						{
+							"include": "#preprocessor"
+						},
+						{
+							"include": "#method-declaration"
+						},
+						{
+							"include": "#variable-declaration"
+						},
+						{
+							"include": "#property-declaration"
+						}
+		
+					]
 				}
 			]
 		},
@@ -68,6 +80,12 @@
 				},
 				{
 					"include": "#comment"
+				},
+				{
+					"include": "#function-special-parameter"
+				},
+				{
+					"include": "#literal"
 				},
 				{
 					"include": "#interpolated-string"
@@ -82,19 +100,47 @@
 					"include": "#dictionary-creation-expression"
 				},
 				{
-					"include": "#literal"
-				},
-				{
 					"include": "#identifier"
 				}
 
 			]
 		},
-		"statement": {
+		"preprocessor": {
+			"begin": "(@)((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)",
+			"beginCaptures": {
+				"1": {
+					"name": "punctuation.separator.at.tjs.krkr"
+				},
+				"2": {
+					"name": "keyword.other.preprocessor.tjs.krkr"
+				}
+			},
+			"end": "(?<=$)",
 			"patterns": [
 				{
-					"include": "#preprocessor"
-				},
+					"begin": "\\(",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
+						}
+					},
+					"end": "\\)",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.parenthesis.end.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#expression"
+						}
+					]
+				}
+			]
+		},
+		"statement": {
+			"patterns": [
+
 				{
 					"include": "#comment"
 				},
@@ -102,10 +148,22 @@
 					"include": "#block"
 				},
 				{
+					"include": "#declaration"
+				},
+				{
 					"include": "#break-or-continue-statement"
 				},
 				{
+					"include": "#return-statement"
+				},
+				{
+					"include": "#throw-statement"
+				},
+				{
 					"include": "#if-statement"
+				},
+				{
+					"include": "#else-statement"
 				},
 				{
 					"include": "#while-statement"
@@ -129,14 +187,257 @@
 					"include": "#expression"
 				},
 				{
-					"include": "#declaration"
-				},
-				{
 					"include": "#punctuation-semicolon"
 				}
 			]
 		},
-		"method-delaration": {
+		"property-declaration": {
+			"begin": "(?<!\\.)\\b(property)\\b\\s+((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.other.property.tjs.krkr"
+				},
+				"2": {
+					"name": "entity.name.variable.property.tjs.krkr"
+				}
+			},
+			"end": "(?<=\\})",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"begin": "\\{",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.curlybrace.begin.tjs.krkr"
+						}
+					},
+					"end": "\\}",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.curlybrace.end.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#comment"
+						},
+						{
+							"begin": "(?<!\\.)\\b(getter)\\b",
+							"beginCaptures": {
+								"0": {
+									"name": "keyword.other.getter"
+								}
+							},
+							"end": "(?<=\\})",
+							"patterns": [
+								{
+									"include": "#comment"
+								},
+								{
+									"begin": "\\(",
+									"beginCaptures": {
+										"0": {
+											"name": "punctuation.parenthesis.begin.tjs.krkr"
+										}
+									},
+									"end": "\\)",
+									"endCaptures": {
+										"0": {
+											"name": "punctuation.parenthesis.end.tjs.krkr"
+										}
+									}
+								},
+								{
+									"include": "#block"
+								}
+							]
+						},
+						{
+							"begin": "(?<!\\.)\\b(setter)\\b",
+							"beginCaptures": {
+								"0": {
+									"name": "keyword.other.setter"
+								}
+							},
+							"end": "(?<=\\})",
+							"patterns": [
+								{
+									"include": "#comment"
+								},
+								{
+									"begin": "\\(",
+									"beginCaptures": {
+										"0": {
+											"name": "punctuation.parenthesis.begin.tjs.krkr"
+										}
+									},
+									"end": "\\)",
+									"endCaptures": {
+										"0": {
+											"name": "punctuation.parenthesis.end.tjs.krkr"
+										}
+									},
+									"patterns": [
+										{
+											"include": "#comment"
+										},
+										{
+											"include": "#parameter-list"
+										}
+									]
+								},
+								{
+									"include": "#block"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"function-special-parameter": {
+			"patterns": [
+				{
+					"match": "(?<=\\()\\*(?=\\))",
+					"name": "keyword.other.copyparamlist"
+				},
+				{
+					"match": "(?<=\\()\\.\\.\\.(?=\\))",
+					"name": "keyword.other.copyallparam"
+				}
+			]
+		},
+		"interpolated-string": {
+			"patterns": [
+				{
+					"name": "string.quoted.single.tjs.krkr",
+					"begin": "\\@'",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.tjs.krkr"
+						}
+					},
+					"end": "(')|((?:[^\\\\\\n])$)",
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.definition.string.end.tjs.krkr"
+						},
+						"2": {
+							"name": "invalid.illegal.newline.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#string-character-escape"
+						},
+						{
+							"include": "#interpolation"
+						}
+					]
+				},
+				{
+					"name": "string.quoted.double.tjs.krkr",
+					"begin": "\\@\"",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.tjs.krkr"
+						}
+					},
+					"end": "(\")|((?:[^\\\\\\n])$)",
+					"endCaptures": {
+						"1": {
+							"name": "punctuation.definition.string.end.tjs.krkr"
+						},
+						"2": {
+							"name": "invalid.illegal.newline.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#string-character-escape"
+						},
+						{
+							"include": "#interpolation"
+						}
+					]
+				}
+			]
+		},
+		"interpolation": {
+			"patterns": [
+				{
+					"name": "meta.interpolation.tjs.krkr",
+					"begin": "(?<!\\\\)(\\$\\{)",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.definition.interpolation.begin.tjs.krkr"
+						}
+					},
+					"end": "\\}",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.interpolation.end.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#expression"
+						}
+					]
+				},
+				{
+					"name": "meta.interpolation.tjs.krkr",
+					"begin": "(?<!\\\\)(&)",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.definition.interpolation.begin.tjs.krkr"
+						}
+					},
+					"end": "\\;",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.interpolation.end.tjs.krkr"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#expression"
+						}
+					]
+				}
+			]
+		},
+		"return-statement": {
+			"begin": "(?<!\\.)\\b(return)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.flow.return.tjs.krkr"
+				}
+			},
+			"end": "(?=;)",
+			"patterns": [
+				{
+					"include": "#expression"
+				}
+			]
+		},
+		"throw-statement": {
+			"begin": "(?<!\\.)\\b(throw)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.flow.throw.tjs.krkr"
+				}
+			},
+			"end": "(?=;)",
+			"patterns": [
+				{
+					"include": "#expression"
+				}
+			]
+		},
+		"method-declaration": {
 			"begin": "(?<!\\.)\\b(function)\\b",
 			"beginCaptures": {
 				"0": {
@@ -149,20 +450,20 @@
 					"include": "#comment"
 				},
 				{
-					"name": "entity.name.function.krkr",
+					"name": "entity.name.function.tjs.krkr",
 					"match": "(?<=function\\s+)(?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*"
 				},
 				{
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -171,11 +472,11 @@
 						},
 						{
 							"include": "#parameter-list"
-						},
-						{
-							"include": "#block"
 						}
 					]
+				},
+				{
+					"include": "#block"
 				}
 			]
 		},
@@ -192,13 +493,16 @@
 		"parameter": {
 			"patterns": [
 				{
+					"include": "#comment"
+				},
+				{
 					"begin": "((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\s*(?==)",
 					"beginCaptures": {
 						"1": {
-							"name": "entity.name.variable.parameter.krkr"
+							"name": "entity.name.variable.parameter.tjs.krkr"
 						}
 					},
-					"end": "(?<=\\)|,)",
+					"end": "(?=\\)|,)",
 					"patterns": [
 						{
 							"include": "#variable-initializer"
@@ -206,9 +510,23 @@
 					]
 				},
 				{
-					"include": "#punctuation-comma"
+					"match": "((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\*",
+					"name": "entity.name.variable.parameter.paramlist.tjs.krkr"
+				},
+				{
+					"begin": "((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\s*",
+					"beginCaptures": {
+						"1": {
+							"name": "entity.name.variable.parameter.tjs.krkr"
+						}
+					},
+					"end": "(?=\\)|,)"
+				},
+				{
+					"match": "\\*",
+					"name": "entity.name.variable.parameter.paramlist.tjs.krkr"
 				}
-	]
+			]
 		},
 		"try-statement": {
 			"patterns": [
@@ -224,7 +542,7 @@
 			"begin": "(?<!\\.)\\b(try)\\b",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.try.krkr"
+					"name": "keyword.control.try.tjs.krkr"
 				}
 			},
 			"end": "(?<=\\})",
@@ -241,7 +559,7 @@
 			"begin": "(?<!\\.)\\b(catch)\\b",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.try.catch.krkr"
+					"name": "keyword.control.try.catch.tjs.krkr"
 				}
 			},
 			"end": "(?<=\\})",
@@ -250,13 +568,13 @@
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -277,24 +595,25 @@
 			"match": "(?<!\\.)\\b(?:(break)|(continue))\\b",
 			"captures": {
 				"1": {
-					"name": "keyword.control.flow.break.krkr"
+					"name": "keyword.control.flow.break.tjs.krkr"
 				},
 				"2": {
-					"name": "keyword.control.flow.continue.krkr"
+					"name": "keyword.control.flow.continue.tjs.krkr"
 				}
 			}
 		},
 		"block": {
+			"name": "meta.block",
 			"begin": "\\{",
 			"beginCaptures": {
 				"0": {
-					"name": "punctuation.curlybrace.begin.krkr"
+					"name": "punctuation.curlybrace.begin.tjs.krkr"
 				}
 			},
 			"end": "\\}",
 			"endCaptures": {
 				"0": {
-					"name": "punctuation.curlybrace.end.krkr"
+					"name": "punctuation.curlybrace.end.tjs.krkr"
 				}
 			},
 			"patterns": [
@@ -307,7 +626,7 @@
 			"begin": "(?<!\\.)\\b(if)\\b\\s*(?=\\()",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.conditional.if.krkr"
+					"name": "keyword.control.conditional.if.tjs.krkr"
 				}
 			},
 			"end": "(?<=\\})|(?=;)",
@@ -316,13 +635,13 @@
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -331,6 +650,20 @@
 						}
 					]
 				},
+				{
+					"include": "#statement"
+				}
+			]
+		},
+		"else-statement": {
+			"begin": "(?<!\\.)\\b(else)\\b",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.conditional.else.tjs.krkr"
+				}
+			},
+			"end": "(?=;|\\})",
+			"patterns": [
 				{
 					"include": "#statement"
 				}
@@ -349,13 +682,13 @@
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -373,7 +706,7 @@
 			"begin": "(?<!\\.)\\b(while)\\b\\s*(?=\\()",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.loop.while.krkr"
+					"name": "keyword.control.loop.while.tjs.krkr"
 				}
 			},
 			"end": "(?<=\\})|(?=;)",
@@ -382,13 +715,13 @@
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -406,10 +739,10 @@
 			"begin": "(?<!\\.)\\b(do)\\b",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.loop.do.krkr"
+					"name": "keyword.control.loop.do.tjs.krkr"
 				}
 			},
-			"end": "(?=;|})",
+			"end": "(?=;|\\})",
 			"patterns": [
 				{
 					"include": "#statement"
@@ -420,7 +753,7 @@
 			"begin": "(?<!\\.)\\b(for)\\b\\s*(?=\\()",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.loop.for.krkr"
+					"name": "keyword.control.loop.for.tjs.krkr"
 				}
 			},
 			"end": "(?<=\\})|(?=;)",
@@ -429,13 +762,13 @@
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -462,7 +795,7 @@
 			"begin": "(?<!\\.)\\b(switch)\\b\\s*(?=\\()",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.control.switch.krkr"
+					"name": "keyword.control.switch.tjs.krkr"
 				}
 			},
 			"end": "(?<=\\})",
@@ -471,13 +804,13 @@
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.begin.krkr"
+							"name": "punctuation.parenthesis.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.parenthesis.end.krkr"
+							"name": "punctuation.parenthesis.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -490,13 +823,13 @@
 					"begin": "\\{",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.curlybrace.begin.krkr"
+							"name": "punctuation.curlybrace.begin.tjs.krkr"
 						}
 					},
 					"end": "\\}",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.curlybrace.end.krkr"
+							"name": "punctuation.curlybrace.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -516,13 +849,13 @@
 					"begin": "(?<!\\.)\\b(case)\\b\\s+",
 					"beginCaptures": {
 						"1": {
-							"name": "keyword.control.case.krkr"
+							"name": "keyword.control.case.tjs.krkr"
 						}
 					},
 					"end": ":",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.separator.colon.krkr"
+							"name": "punctuation.separator.colon.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -535,10 +868,10 @@
 					"match": "(?<!\\.)\\b(default)\\b\\s*(:)",
 					"captures": {
 						"1": {
-							"name": "keyword.control.default.krkr"
+							"name": "keyword.control.default.tjs.krkr"
 						},
 						"2": {
-							"name": "punctuation.separator.colon.krkr"
+							"name": "punctuation.separator.colon.tjs.krkr"
 						}
 					}
 				}
@@ -548,13 +881,13 @@
 			"begin": "(?<!%)\\[",
 			"beginCaptures": {
 				"0": {
-					"name": "punctuation.squarebracket.begin.krkr"
+					"name": "punctuation.squarebracket.begin.tjs.krkr"
 				}
 			},
 			"end": "\\]",
 			"endCaptures": {
 				"0": {
-					"name": "punctuation.squarebracket.end.krkr"
+					"name": "punctuation.squarebracket.end.tjs.krkr"
 				}
 			},
 			"patterns": [
@@ -567,13 +900,13 @@
 			"begin": "%\\[",
 			"beginCaptures": {
 				"0": {
-					"name": "punctuation.percent-squarebracket.begin.krkr"
+					"name": "punctuation.percent-squarebracket.begin.tjs.krkr"
 				}
 			},
 			"end": "\\]",
 			"endCaptures": {
 				"0": {
-					"name": "punctuation.percent.squarebracket.end.krkr"
+					"name": "punctuation.percent.squarebracket.end.tjs.krkr"
 				}
 			},
 			"patterns": [
@@ -586,7 +919,7 @@
 						},
 						{
 							"match": "=>|,",
-							"name": "keyword.operator.dictionary-split.krkr"
+							"name": "keyword.operator.dictionary-split.tjs.krkr"
 						},
 						{
 							"include": "#expression"
@@ -598,92 +931,92 @@
 		"expression-operators": {
 			"patterns": [
 				{
-					"name": "keyword.operator.assignment.compound.krkr",
-					"match": "\\*=|/=|\\\\=|%=|\\+=|-=|<->"
+					"name": "keyword.operator.assignment.compound.tjs.krkr",
+					"match": "\\*=|/=|\\\\=|%=|\\+=|\\-=|<\\->"
 				},
 				{
-					"name": "keyword.operator.assignment.compound.bitwise.krkr",
+					"name": "keyword.operator.assignment.compound.bitwise.tjs.krkr",
 					"match": "\\&=|\\^=|<<=|>>=|>>>=|\\|="
 				},
 				{
-					"name": "keyword.operator.bitwise.shift.krkr",
+					"name": "keyword.operator.bitwise.shift.tjs.krkr",
 					"match": "<<|>>>|>>"
 				},
 				{
-					"name": "keyword.operator.comparison.krkr",
-					"match": "===|!==|==|!="
+					"name": "keyword.operator.comparison.tjs.krkr",
+					"match": "===|\\!==|==|\\!="
 				},
 				{
-					"name": "keyword.operator.relational.krkr",
+					"name": "keyword.operator.relational.tjs.krkr",
 					"match": "<=|>=|<|>"
 				},
 				{
-					"name": "keyword.operator.logical.krkr",
+					"name": "keyword.operator.logical.tjs.krkr",
 					"match": "\\!|&&|\\|\\|"
 				},
 				{
-					"name": "keyword.operator.bitwise.krkr",
+					"name": "keyword.operator.bitwise.tjs.krkr",
 					"match": "\\&|~|\\^|\\|"
 				},
 				{
-					"name": "keyword.operator.assignment.krkr",
+					"name": "keyword.operator.assignment.tjs.krkr",
 					"match": "\\="
 				},
 				{
-					"name": "keyword.operator.decrement.krkr",
-					"match": "--"
+					"name": "keyword.operator.decrement.tjs.krkr",
+					"match": "\\-\\-"
 				},
 				{
-					"name": "keyword.operator.increment.krkr",
+					"name": "keyword.operator.increment.tjs.krkr",
 					"match": "\\+\\+"
 				},
 				{
-					"name": "keyword.operator.arithmetic.krkr",
-					"match": "%|\\*|/|-|\\+|\\\\"
+					"name": "keyword.operator.arithmetic.tjs.krkr",
+					"match": "%|\\*|/|\\-|\\+|\\\\"
 				},
 				{
-					"name": "keyword.operator.new.krkr",
+					"name": "keyword.operator.new.tjs.krkr",
 					"match": "(?<!\\.)\\bnew\\b"
 				},
 				{
-					"name": "keyword.operator.invalidate.krkr",
+					"name": "keyword.operator.invalidate.tjs.krkr",
 					"match": "(?<!\\.)\\binvalidate\\b"
 				},
 				{
-					"name": "keyword.operator.isvalid.krkr",
+					"name": "keyword.operator.isvalid.tjs.krkr",
 					"match": "(?<!\\.)\\bisvalid\\b"
 				},
 				{
-					"name": "keyword.operator.delete.krkr",
+					"name": "keyword.operator.delete.tjs.krkr",
 					"match": "(?<!\\.)\\bdelete\\b"
 				},
 				{
-					"name": "keyword.operator.typeof.krkr",
+					"name": "keyword.operator.typeof.tjs.krkr",
 					"match": "(?<!\\.)\\btypeof\\b"
 				},
 				{
-					"name": "keyword.operator.sharp.krkr",
+					"name": "keyword.operator.sharp.tjs.krkr",
 					"match": "#"
 				},
 				{
-					"name": "keyword.operator.dolar.krkr",
-					"match": "$"
+					"name": "keyword.operator.dolar.tjs.krkr",
+					"match": "\\$"
 				},
 				{
-					"name": "keyword.operator.instanceof.krkr",
+					"name": "keyword.operator.instanceof.tjs.krkr",
 					"match": "(?<!\\.)\\binstanceof\\b"
 				},
 				{
 					"begin": "\\(",
 					"beginCaptures": {
 						"0": {
-							"name": "keyword.operator.call.begin.krkr"
+							"name": "keyword.operator.call.begin.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "keyword.operator.call.end.krkr"
+							"name": "keyword.operator.call.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -696,13 +1029,13 @@
 					"begin": "(?<=[\\}\\)\\]\\w]|[^\\x00\\xff])\\s*(\\[)",
 					"beginCaptures": {
 						"1": {
-							"name": "keyword.operator.access.begin.krkr"
+							"name": "keyword.operator.access.begin.tjs.krkr"
 						}
 					},
 					"end": "\\]",
 					"endCaptures": {
 						"0": {
-							"name": "keyword.operator.access.end.krkr"
+							"name": "keyword.operator.access.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -715,10 +1048,10 @@
 					"begin": "\\.",
 					"beginCaptures": {
 						"0": {
-							"name": "keyword.operator.member-access.krkr"
+							"name": "keyword.operator.member-access.tjs.krkr"
 						}
 					},
-					"end": "(?=[,\\)\\];}])",
+					"end": "(?=[,\\)\\];\\}])",
 					"patterns": [
 						{
 							"include": "#expression"
@@ -764,11 +1097,11 @@
 		"regular-expression-literal": {
 			"patterns": [
 				{
-					"name": "string.regexp.krkr",
+					"name": "string.regexp.tjs.krkr",
 					"begin": "(?<!\\+\\+|--|})(?<=[=(:,\\[?+!]|^return|[^\\._$[:alnum:]]return|^case|[^\\._$[:alnum:]]case|=>|&&|\\|\\||\\*\\/)\\s*(\\/)(?![\\/*])(?=(?:[^\\/\\\\\\[\\()]|\\\\.|\\[([^\\]\\\\]|\\\\.)+\\]|\\(([^\\)\\\\]|\\\\.)+\\))+\\/([dgimsuy]+|(?![\\/\\*])|(?=\\/\\*))(?!\\s*[a-zA-Z0-9_$]))",
 					"beginCaptures": {
 						"1": {
-							"name": "punctuation.definition.string.begin.slash.krkr"
+							"name": "punctuation.definition.string.begin.slash.tjs.krkr"
 						}
 					},
 					"end": "(/)([dgimsuy]*)",
@@ -777,7 +1110,7 @@
 							"name": "punctuation.definition.string.end.slash,krkr"
 						},
 						"2": {
-							"name": "keyword.other.krkr"
+							"name": "keyword.other.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -787,20 +1120,20 @@
 					]
 				},
 				{
-					"name": "string.regexp.krkr",
+					"name": "string.regexp.tjs.krkr",
 					"begin": "((?<![_$[:alnum:])\\]]|\\+\\+|--|}|\\*\\/)|((?<=^return|[^\\._$[:alnum:]]return|^case|[^\\._$[:alnum:]]case))\\s*)\\/(?![\\/*])(?=(?:[^\\/\\\\\\[]|\\\\.|\\[([^\\]\\\\]|\\\\.)*\\])+\\/([dgimsuy]+|(?![\\/\\*])|(?=\\/\\*))(?!\\s*[a-zA-Z0-9_$]))",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.begin.slash.krkr"
+							"name": "punctuation.definition.string.begin.slash.tjs.krkr"
 						}
 					},
 					"end": "(/)([dgimsuy]*)",
 					"endCaptures": {
 						"1": {
-							"name": "punctuation.definition.string.end.slash.krkr"
+							"name": "punctuation.definition.string.end.slash.tjs.krkr"
 						},
 						"2": {
-							"name": "keyword.other.krkr"
+							"name": "keyword.other.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -814,55 +1147,55 @@
 		"regexp": {
 			"patterns": [
 				{
-					"name": "keyword.control.anchor.regexp.krkr",
+					"name": "keyword.control.anchor.regexp.tjs.krkr",
 					"match": "\\\\[bB]|\\^|\\$"
 				},
 				{
 					"match": "\\\\[1-9]\\d*|\\\\k<([a-zA-Z_$][\\w$]*)>",
 					"captures": {
 						"0": {
-							"name": "keyword.other.back-reference.regexp.krkr"
+							"name": "keyword.other.back-reference.regexp.tjs.krkr"
 						},
 						"1": {
-							"name": "variable.other.regexp.krkr"
+							"name": "variable.other.regexp.tjs.krkr"
 						}
 					}
 				},
 				{
-					"name": "keyword.operator.quantifier.regexp.krkr",
+					"name": "keyword.operator.quantifier.regexp.tjs.krkr",
 					"match": "[?+*]|\\{(\\d+,\\d+|\\d+,|,\\d+|\\d+)\\}\\??"
 				},
 				{
-					"name": "keyword.operator.or.regexp.krkr",
+					"name": "keyword.operator.or.regexp.tjs.krkr",
 					"match": "\\|"
 				},
 				{
-					"name": "meta.group.assertion.regexp.krkr",
+					"name": "meta.group.assertion.regexp.tjs.krkr",
 					"begin": "(\\()((\\?=)|(\\?!)|(\\?<=)|(\\?<!))",
 					"beginCaptures": {
 						"1": {
-							"name": "punctuation.definition.group.regexp.krkr"
+							"name": "punctuation.definition.group.regexp.tjs.krkr"
 						},
 						"2": {
-							"name": "punctuation.definition.group.assertion.regexp.krkr"
+							"name": "punctuation.definition.group.assertion.regexp.tjs.krkr"
 						},
 						"3": {
-							"name": "meta.assertion.look-ahead.regexp.krkr"
+							"name": "meta.assertion.look-ahead.regexp.tjs.krkr"
 						},
 						"4": {
-							"name": "meta.assertion.negative-look-ahead.regexp.krkr"
+							"name": "meta.assertion.negative-look-ahead.regexp.tjs.krkr"
 						},
 						"5": {
-							"name": "meta.assertion.look-behind.regexp.krkr"
+							"name": "meta.assertion.look-behind.regexp.tjs.krkr"
 						},
 						"6": {
-							"name": "meta.assertion.negative-look-behind.regexp.krkr"
+							"name": "meta.assertion.negative-look-behind.regexp.tjs.krkr"
 						}
 					},
 					"end": "(\\))",
 					"endCaptures": {
 						"1": {
-							"name": "punctuation.definition.group.regexp.krkr"
+							"name": "punctuation.definition.group.regexp.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -872,23 +1205,23 @@
 					]
 				},
 				{
-					"name": "meta.group.regexp.krkr",
+					"name": "meta.group.regexp.tjs.krkr",
 					"begin": "\\((?:(\\?:)|(?:\\?<([a-zA-Z_$][\\w$]*)>))?",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.group.regexp.krkr"
+							"name": "punctuation.definition.group.regexp.tjs.krkr"
 						},
 						"1": {
-							"name": "punctuation.definition.group.no-capture.regexp.krkr"
+							"name": "punctuation.definition.group.no-capture.regexp.tjs.krkr"
 						},
 						"2": {
-							"name": "variable.other.regexp.krkr"
+							"name": "variable.other.regexp.tjs.krkr"
 						}
 					},
 					"end": "\\)",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.definition.group.regexp.krkr"
+							"name": "punctuation.definition.group.regexp.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -898,44 +1231,44 @@
 					]
 				},
 				{
-					"name": "constant.other.character-class.set.regexp.krkr",
+					"name": "constant.other.character-class.set.regexp.tjs.krkr",
 					"begin": "(\\[)(\\^)?",
 					"beginCaptures": {
 						"1": {
-							"name": "punctuation.definition.character-class.regexp.krkr"
+							"name": "punctuation.definition.character-class.regexp.tjs.krkr"
 						},
 						"2": {
-							"name": "keyword.operator.negation.regexp.krkr"
+							"name": "keyword.operator.negation.regexp.tjs.krkr"
 						}
 					},
 					"end": "(\\])",
 					"endCaptures": {
 						"1": {
-							"name": "punctuation.definition.character-class.regexp.krkr"
+							"name": "punctuation.definition.character-class.regexp.tjs.krkr"
 						}
 					},
 					"patterns": [
 						{
-							"name": "constant.other.character-class.range.regexp.krkr",
+							"name": "constant.other.character-class.range.regexp.tjs.krkr",
 							"match": "(?:.|(\\\\(?:[0-7]{3}|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}))|(\\\\c[A-Z])|(\\\\.))\\-(?:[^\\]\\\\]|(\\\\(?:[0-7]{3}|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}))|(\\\\c[A-Z])|(\\\\.))",
 							"captures": {
 								"1": {
-									"name": "constant.character.numeric.regexp.krkr"
+									"name": "constant.character.numeric.regexp.tjs.krkr"
 								},
 								"2": {
-									"name": "constant.character.control.regexp.krkr"
+									"name": "constant.character.control.regexp.tjs.krkr"
 								},
 								"3": {
-									"name": "constant.character.escape.backslash.regexp.krkr"
+									"name": "constant.character.escape.backslash.regexp.tjs.krkr"
 								},
 								"4": {
-									"name": "constant.character.numeric.regexp.krkr"
+									"name": "constant.character.numeric.regexp.tjs.krkr"
 								},
 								"5": {
-									"name": "constant.character.control.regexp.krkr"
+									"name": "constant.character.control.regexp.tjs.krkr"
 								},
 								"6": {
-									"name": "constant.character.escape.backslash.regexp.krkr"
+									"name": "constant.character.escape.backslash.regexp.tjs.krkr"
 								}
 							}
 						},
@@ -952,34 +1285,35 @@
 		"regex-character-class": {
 			"patterns": [
 				{
-					"name": "constant.other.character-class.regexp.krkr",
+					"name": "constant.other.character-class.regexp.tjs.krkr",
 					"match": "\\\\[wWsSdDtrnvf]|\\."
 				},
 				{
-					"name": "constant.character.numeric.regexp.krkr",
+					"name": "constant.character.numeric.regexp.tjs.krkr",
 					"match": "\\\\([0-7]{3}|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4})"
 				},
 				{
-					"name": "constant.character.control.regexp.krkr",
+					"name": "constant.character.control.regexp.tjs.krkr",
 					"match": "\\\\c[A-Z]"
 				},
 				{
-					"name": "constant.character.escape.backslash.regexp.krkr",
+					"name": "constant.character.escape.backslash.regexp.tjs.krkr",
 					"match": "\\\\."
 				}
 			]
 		},
 		"octal-string-literal": {
+			"name": "string.quated.other.octal.tjs.krkr",
 			"begin": "<%",
 			"beginCaptures": {
 				"0": {
-					"name": "punctuation.definition.octal-string.begin.krkr"
+					"name": "punctuation.definition.octal-string.begin.tjs.krkr"
 				}
 			},
 			"end": "%>",
 			"endCaptures": {
 				"0": {
-					"name": "punctuation.definition.octal-string.end.krkr"
+					"name": "punctuation.definition.octal-string.end.tjs.krkr"
 				}
 			},
 			"patterns": [
@@ -989,11 +1323,11 @@
 						"1": {
 							"patterns": [
 								{
-									"name": "constant.numeric.octal-string-element.krkr",
-									"match": "[0-9a-fA-F]{2}"
+									"name": "constant.numeric.octal-string-element.tjs.krkr",
+									"match": "(?<![0-9a-fA-F])[0-9a-fA-F]{2}(?![0-9a-fA-F])"
 								},
 								{
-									"name": "invalid.illegal.constant.numeric.krkr",
+									"name": "invalid.illegal.constant.numeric.tjs.krkr",
 									"match": "[0-9a-zA-Z_\\.]+"
 								}
 							]
@@ -1005,20 +1339,20 @@
 		"string-literal": {
 			"patterns": [
 				{
-					"name": "string.quoted.double.krkr",
+					"name": "string.quoted.double.tjs.krkr",
 					"begin": "(?<!@)\"",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.begin.double.krkr"
+							"name": "punctuation.definition.string.begin.double.tjs.krkr"
 						}
 					},
 					"end": "(\")|((?:[^\\\\\\n])$)",
 					"endCaptures": {
 						"1": {
-							"name": "punctuation.definition.string.end.double.krkr"
+							"name": "punctuation.definition.string.end.double.tjs.krkr"
 						},
 						"2": {
-							"name": "invalid.illegal.newline.krkr"
+							"name": "invalid.illegal.newline.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -1028,20 +1362,20 @@
 					]
 				},
 				{
-					"name": "string.quoted.single.krkr",
+					"name": "string.quoted.single.tjs.krkr",
 					"begin": "(?<!@)'",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.begin.single.krkr"
+							"name": "punctuation.definition.string.begin.single.tjs.krkr"
 						}
 					},
 					"end": "(')|((?:[^\\\\\\n])$)",
 					"endCaptures": {
 						"1": {
-							"name": "punctuation.definition.string.end.single.krkr"
+							"name": "punctuation.definition.string.end.single.tjs.krkr"
 						},
 						"2": {
-							"name": "invalid.illegal.newline.krkr"
+							"name": "invalid.illegal.newline.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -1053,27 +1387,27 @@
 			]
 		},
 		"string-character-escape": {
-			"name": "constant.character.escape.krkr",
-			"match": "\\\\(['\"\\\\0abfnrtv]|x[0-9a-fA-F]{1,4})"
+			"name": "constant.character.escape.tjs.krkr",
+			"match": "\\\\(['\"\\\\0abfnrtv\\&\\$]|x[0-9a-fA-F]{1,4})"
 		},
 		"boolean-literal": {
 			"patterns": [
 				{
-					"name": "constant.language.boolean.true.krkr",
+					"name": "constant.language.boolean.true.tjs.krkr",
 					"match": "(?<!\\.)\\btrue\\b"		
 				},
 				{
-					"name": "constant.language.boolean.false.krkr",
+					"name": "constant.language.boolean.false.tjs.krkr",
 					"match": "(?<!\\.)\\bfalse\\b"
 				}
 			]
 		},
 		"null-literal": {
-			"name": "constant.language.null.krkr",
+			"name": "constant.language.null.tjs.krkr",
 			"match": "(?<!\\.)\\bnull\\b"
 		},
 		"void-literal": {
-			"name": "constant.language.void.krkr",
+			"name": "constant.language.void.tjs.krkr",
 			"match": "(?<!\\.)\\bvoid\\bv"
 		},
 		"numeric-literal": {
@@ -1082,144 +1416,151 @@
 				"0": {
 					"patterns": [
 						{
-							"match": "(\\G(?=[0-9.])(?!0[xXbB0-9]))([0-9]*)((?<=[0-9])|\\.(?=[0-9]))([0-9]*)([eE](\\+?)(\\-?)([0-9]*))?",
-							"captures": {
-								"2": {
-									"name": "constant.numeric.decimal.krkr"
+							"begin": "(?=.)",
+							"end": "$",
+							"patterns": [
+								{
+									"match": "(\\G(?=[1-9\\.]))([0-9]*)((?:(?<=[0-9])|\\.(?=[0-9])))([0-9]*)([eE](\\+?)(\\-?)([0-9]*))?$",
+									"captures": {
+										"2": {
+											"name": "constant.numeric.decimal.tjs.krkr"
+										},
+										"3": {
+											"name": "constant.numeric.other.separator.tjs.krkr"
+										},
+										"4": {
+											"name": "constant.numeric.decimal.tjs.krkr"
+										},
+										"5": {
+											"name": "constant.numeric.other.exponent.decimal.tjs.krkr"
+										},
+										"6": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"7": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"8": {
+											"name": "constant.numeric.decimal.tjs.krkr"
+										}
+									}
 								},
-								"3": {
-									"name": "constant.numeric.other.separator.krkr"
+								{
+									"match": "(\\G0[bB])([01]*)((?:(?<=[01])|\\.(?=[01])))([01]*)([pP](\\+?)(\\-?)([01]*))?$",
+									"captures": {
+										"1": {
+											"name": "constant.numeric.other.preffix.binary.tjs.krkr"
+										},
+										"2": {
+											"name": "constant.numeric.binary.tjs.krkr"
+										},
+										"3": {
+											"name": "constant.numeric.other.separator.tjs.krkr"
+										},
+										"4": {
+											"name": "constant.numeric.binary.tjs.krkr"
+										},
+										"5": {
+											"name": "constant.numeric.other.exponent.nondecimal.tjs.krkr"
+										},
+										"6": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"7": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"8": {
+											"name": "constant.numeric.binary.tjs.krkr"
+										}
+									}
 								},
-								"4": {
-									"name": "constant.numeric.decimal.krkr"
+								{
+									"match": "(\\G0(?=[0-7]))([0-7]*)((?:(?<=[0-7])|\\.(?=[0-7])))([0-7]*)([pP](\\+?)(\\-?)([0-7]*))?$",
+									"captures": {
+										"1": {
+											"name": "constant.numeric.other.preffix.octal.tjs.krkr"
+										},
+										"2": {
+											"name": "constant.numeric.octal.tjs.krkr"
+										},
+										"3": {
+											"name": "constant.numeric.other.separator.tjs.krkr"
+										},
+										"4": {
+											"name": "constant.numeric.octal.tjs.krkr"
+										},
+										"5": {
+											"name": "constant.numeric.other.exponent.nondecimal.tjs.krkr"
+										},
+										"6": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"7": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"8": {
+											"name": "constant.numeric.octal.tjs.krkr"
+										}
+									}
 								},
-								"5": {
-									"name": "constant.numeric.other.exponent.decimal.krkr"
+								{
+									"match": "(\\G0[xX])([0-9a-fA-F]*)((?:(?<=[0-9a-fA-F])|\\.(?=[0-9a-fA-F])))([0-9a-fA-F]*)([pP](\\+?)(\\-?)([0-9a-fA-F]*))?$",
+									"captures": {
+										"1": {
+											"name": "constant.numeric.other.preffix.heximal.tjs.krkr"
+										},
+										"2": {
+											"name": "constant.numeric.heximal.tjs.krkr"
+										},
+										"3": {
+											"name": "constant.numeric.other.separator.tjs.krkr"
+										},
+										"4": {
+											"name": "constant.numeric.heximal.tjs.krkr"
+										},
+										"5": {
+											"name": "constant.numeric.other.exponent.nondecimal.tjs.krkr"
+										},
+										"6": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"7": {
+											"name": "keyword.operator.arithmetic.tjs.krkr"
+										},
+										"8": {
+											"name": "constant.numeric.heximal.tjs.krkr"
+										}
+									}
 								},
-								"6": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"7": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"8": {
-									"name": "constant.numeric.decimal.krkr"
+								{
+									"match": "(?:(?:[0-9a-zA-Z_\\.]|_)|(?<=[eE])[+-])+",
+									"name": "invalid.illegal.constant.numeric.tjs.krkr"
 								}
-							}
-						},
-						{
-							"match": "(\\G0[bB])([01]*)((?<=[01])|\\.(?=[01]))([01]*)([pP](\\+?)(\\-?)([01]*))?",
-							"captures": {
-								"1": {
-									"name": "constant.numeric.other.preffix.binary.krkr"
-								},
-								"2": {
-									"name": "constant.numeric.binary.krkr"
-								},
-								"3": {
-									"name": "constant.numeric.other.separator.krkr"
-								},
-								"4": {
-									"name": "constant.numeric.binary.krkr"
-								},
-								"5": {
-									"name": "constant.numeric.other.exponent.nondecimal.krkr"
-								},
-								"6": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"7": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"8": {
-									"name": "constant.numeric.binary.krkr"
-								}
-							}
-						},
-						{
-							"match": "(\\G0(?=[0-7]))([0-7]*)((?<=[0-7])|\\.(?=[0-7]))([0-7]*)([pP](\\+?)(\\-?)([0-7]*))?",
-							"captures": {
-								"1": {
-									"name": "constant.numeric.other.preffix.octal.krkr"
-								},
-								"2": {
-									"name": "constant.numeric.octal.krkr"
-								},
-								"3": {
-									"name": "constant.numeric.other.separator.krkr"
-								},
-								"4": {
-									"name": "constant.numeric.octal.krkr"
-								},
-								"5": {
-									"name": "constant.numeric.other.exponent.nondecimal.krkr"
-								},
-								"6": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"7": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"8": {
-									"name": "constant.numeric.octal.krkr"
-								}
-							}
-						},
-						{
-							"match": "(\\G0[xX])([0-9a-fA-F]*)((?<=[0-9a-fA-F])|\\.(?=[0-9a-fA-F]))([0-9a-fA-F]*)([pP](\\+?)(\\-?)([0-9a-fA-F]*))?",
-							"captures": {
-								"1": {
-									"name": "constant.numeric.other.preffix.heximal.krkr"
-								},
-								"2": {
-									"name": "constant.numeric.heximal.krkr"
-								},
-								"3": {
-									"name": "constant.numeric.other.separator.krkr"
-								},
-								"4": {
-									"name": "constant.numeric.heximal.krkr"
-								},
-								"5": {
-									"name": "constant.numeric.other.exponent.nondecimal.krkr"
-								},
-								"6": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"7": {
-									"name": "keyword.operator.arithmetic.krkr"
-								},
-								"8": {
-									"name": "constant.numeric.heximal.krkr"
-								}
-							}
-						},
-						{
-							"match": "(?:(?:[0-9a-zA-Z_\\.]|_)|(?<=[eE])[+-])+",
-							"name": "invalid.illegal.constant.numeric.krkr"
+							]
+		
 						}
 					]
 				}
 			}
 		},
 		"identifier": {
-			"name": "variable.other.readwrite.krkr",
+			"name": "variable.other.readwrite.tjs.krkr",
 			"match": "(?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*"
 		},
 		"variable-declaration": {
 			"begin": "(\\bvar\\b)\\s+((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\s*(?=,|;|=|\\))",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.other.var.krkr"
+					"name": "keyword.other.var.tjs.krkr"
 				},
 				"2": {
-					"name": "entity.name.variable.krkr"
+					"name": "entity.name.variable.tjs.krkr"
 				}
 			},
 			"end": "(?=;|\\))",
 			"patterns": [
 				{
-					"name": "entity.name.variable.krkr",
+					"name": "entity.name.variable.tjs.krkr",
 					"match": "(?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*"
 				},
 				{
@@ -1234,13 +1575,13 @@
 			]
 		},
 		"variable-initializer": {
-			"begin": "(?<!=|!)(=)(?!=|>)",
+			"begin": "(?<!=|\\!)(=)(?!=|>)",
 			"beginCaptures": {
 				"1": {
-					"name": "keyword.operator.assignment.krkr"
+					"name": "keyword.operator.assignment.tjs.krkr"
 				}
 			},
-			"end": "(?=[,\\)\\];}])",
+			"end": "(?=[,\\)\\];\\}])",
 			"patterns": [
 				{
 					"include": "#expression"
@@ -1250,17 +1591,17 @@
 		"comment": {
 			"patterns": [
 				{
-					"name": "comment.block.krkr",
+					"name": "comment.block.tjs.krkr",
 					"begin": "/\\*",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.comment.krkr"
+							"name": "punctuation.definition.comment.tjs.krkr"
 						}
 					},
 					"end": "\\*/",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.definition.comment.krkr"
+							"name": "punctuation.definition.comment.tjs.krkr"
 						}
 					}
 				},
@@ -1268,17 +1609,17 @@
 					"begin": "(^\\s+)?(?=//)",
 					"beginCaptures": {
 						"1": {
-							"name": "punctuation.whitespace.comment.leading.krkr"
+							"name": "punctuation.whitespace.comment.leading.tjs.krkr"
 						}
 					},
 					"end": "(?=$)",
 					"patterns": [
 						{
-							"name": "comment.block.documentation.krkr",
+							"name": "comment.block.documentation.tjs.krkr",
 							"begin": "(?<!/)///(?!/)",
 							"beginCaptures": {
 								"0": {
-									"name": "punctuation.definition.comment.krkr"
+									"name": "punctuation.definition.comment.tjs.krkr"
 								}
 							},
 							"end": "(?=$)",
@@ -1289,11 +1630,11 @@
 							]
 						},
 						{
-							"name": "comment.line.double-slash.krkr",
+							"name": "comment.line.double-slash.tjs.krkr",
 							"begin": "(?<!/)//(?:(?!/)|(?=//))",
 							"beginCaptures": {
 								"0": {
-									"name": "punctuation.definition.comment.krkr"
+									"name": "punctuation.definition.comment.tjs.krkr"
 								}
 							},
 							"end": "(?=$)"
@@ -1303,16 +1644,62 @@
 			]
 		},
 		"punctuation-semicolon": {
-			"name": "punctuation.terminator.statement.krkr",
+			"name": "punctuation.terminator.statement.tjs.krkr",
 			"match": ";"
 		},
 		"punctuation-accessor": {
-			"name": "punctuation.accessor.krkr",
+			"name": "punctuation.accessor.tjs.krkr",
 			"match": "\\."
 		},
 		"punctuation-comma": {
-			"name": "punctuation.separator.comma.krkr",
+			"name": "punctuation.separator.comma.tjs.krkr",
 			"match": ","
+		},
+		"kag-tag": {
+			"name": "meta.tag.kag.krkr",
+			"begin": "(@)((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\s+",
+			"beginCaptures": {
+				"1": {
+					"name": "punctuation.separator.at.kag.krkr"
+				},
+				"2": {
+					"name": "entity.name.tag.kag.krkr"
+				}
+			},
+			"end": "(?=$)",
+			"patterns": [
+				{
+					"include": "#comment"
+				},
+				{
+					"include": "#kag-attribute"
+				}
+			]
+		},
+		"kag-attribute": {
+			"begin": "((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\s*",
+			"beginCaptures": {
+				"1": {
+					"name": "entity.other.attribute-name.kag.krkr"
+				}
+			},
+			"end": "(?=\\s+|$)",
+			"patterns": [
+				{
+					"begin": "(=)\\s*(?=\"|')",
+					"beginCaptures": {
+						"1": {
+							"name": "punctuation.separator.colon.kag.krkr"
+						}
+					},
+					"end": "(?=\\s+|$)",
+					"patterns": [
+						{
+							"include": "#string-literal"
+						}
+					]
+				}
+			]
 		},
 		"xml-doc-comment": {
 			"patterns": [
@@ -1331,29 +1718,29 @@
 			]
 		},
 		"xml-tag": {
-			"name": "meta.tag.krkr",
+			"name": "meta.tag.tjs.krkr",
 			"begin": "(</?)((?:([-_[:alnum:]]+))(:))?([-_[:alnum:]]+)",
 			"beginCaptures": {
 				"1": {
-					"name": "punctuation.definition.tag.krkr"
+					"name": "punctuation.definition.tag.tjs.krkr"
 				},
 				"2": {
-					"name": "entity.name.tag.krkr"
+					"name": "entity.name.tag.tjs.krkr"
 				},
 				"3": {
-					"name": "entity.name.tag.namespace.krkr"
+					"name": "entity.name.tag.namespace.tjs.krkr"
 				},
 				"4": {
-					"name": "punctuation.separator.colon.krkr"
+					"name": "punctuation.separator.colon.tjs.krkr"
 				},
 				"5": {
-					"name": "entity.name.tag.localname.krkr"
+					"name": "entity.name.tag.localname.tjs.krkr"
 				}
 			},
 			"end": "(/?>)",
 			"endCaptures": {
 				"1": {
-					"name": "punctuation.definition.tag.krkr"
+					"name": "punctuation.definition.tag.tjs.krkr"
 				}
 			},
 			"patterns": [
@@ -1368,53 +1755,56 @@
 					"match": "(?:^|\\s+)((?:([-_[:alnum:]]+)(:))?([-_[:alnum:]]+))(=)",
 					"captures": {
 						"1": {
-							"name": "entity.other.attribute-name.krkr"
+							"name": "entity.other.attribute-name.tjs.krkr"
 						},
 						"2": {
-							"name": "entity.other.attribute-name.namespace.krkr"
+							"name": "entity.other.attribute-name.namespace.tjs.krkr"
 						},
 						"3": {
-							"name": "punctuation.separator.colon.krkr"
+							"name": "punctuation.separator.colon.tjs.krkr"
 						},
 						"4": {
-							"name": "entity.other.attribute-name.localname.krkr"
+							"name": "entity.other.attribute-name.localname.tjs.krkr"
 						},
 						"5": {
-							"name": "punctuation.separator.equals.krkr"
+							"name": "punctuation.separator.equals.tjs.krkr"
 						}
 					}
+				},
+				{
+					"include": "#xml-string"
 				}
 			]
 		},
 		"xml-cdata": {
-			"name": "string.unquoted.cdata.krkr",
+			"name": "string.unquoted.cdata.tjs.krkr",
 			"begin": "<!\\[CDATA\\[",
 			"beginCaptures": {
 				"0": {
-					"name": "punctuation.definition.string.begin.krkr"
+					"name": "punctuation.definition.string.begin.tjs.krkr"
 				}
 			},
 			"end": "\\]\\]>",
 			"endCaptures": {
 				"0": {
-					"name": "punctuation.definition.string.end.krkr"
+					"name": "punctuation.definition.string.end.tjs.krkr"
 				}
 			}
 		},
 		"xml-string": {
 			"patterns": [
 				{
-					"name": "string.quoted.single.krkr",
+					"name": "string.quoted.single.tjs.krkr",
 					"begin": "\\'",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.begin.krkr"
+							"name": "punctuation.definition.string.begin.tjs.krkr"
 						}
 					},
 					"end": "\\'",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.end.krkr"
+							"name": "punctuation.definition.string.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -1424,17 +1814,17 @@
 					]
 				},
 				{
-					"name": "string.quoted.double.krkr",
+					"name": "string.quoted.double.tjs.krkr",
 					"begin": "\\\"",
 					"beginCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.begin.krkr"
+							"name": "punctuation.definition.string.begin.tjs.krkr"
 						}
 					},
 					"end": "\\\"",
 					"endCaptures": {
 						"0": {
-							"name": "punctuation.definition.string.end.krkr"
+							"name": "punctuation.definition.string.end.tjs.krkr"
 						}
 					},
 					"patterns": [
@@ -1448,38 +1838,38 @@
 		"xml-character-entity": {
 			"patterns": [
 				{
-					"name": "constant.character.entity.krkr",
+					"name": "constant.character.entity.tjs.krkr",
 					"match": "(&)((?:[[:alpha:]:_][[:alnum:]:_.-]*)|(?:\\#[[:digit:]]+)|(?:\\#x[[:xdigit:]]+))(;)",
 					"captures": {
 						"1": {
-							"name": "punctuation.definition.constant.krkr"
+							"name": "punctuation.definition.constant.tjs.krkr"
 						},
 						"3": {
-							"name": "punctuation.definition.constant.krkr"
+							"name": "punctuation.definition.constant.tjs.krkr"
 						}
 					}
 				},
 				{
-					"name": "invalid.illegal.bad-ampersand.krkr",
+					"name": "invalid.illegal.bad-ampersand.tjs.krkr",
 					"match": "&"
 				}
 			]
 		},
 		"xml-comment": {
-			"name": "comment.block.krkr",
+			"name": "comment.block.tjs.krkr",
 			"begin": "<!--",
 			"beginCaptures": {
 				"0": {
-					"name": "punctuation.definition.comment.krkr"
+					"name": "punctuation.definition.comment.tjs.krkr"
 				}
 			},
 			"end": "-->",
 			"endCaptures": {
 				"0": {
-					"name": "punctuation.definition.comment.krkr"
+					"name": "punctuation.definition.comment.tjs.krkr"
 				}
 			}
 		}
 	},
-	"scopeName": "source.krkr"
+	"scopeName": "source.tjs.krkr"
 }

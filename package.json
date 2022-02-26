@@ -10,16 +10,25 @@
         "Programming Languages"
     ],
     "contributes": {
-        "languages": [{
-            "id": "krkr",
-            "aliases": ["Krkr", "krkr"],
-            "extensions": [".krkr"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "krkr",
-            "scopeName": "source.krkr",
-            "path": "./syntaxes/krkr.tmLanguage.json"
-        }]
+        "languages": [
+            {
+                "id": "krkr",
+                "aliases": [
+                    "Krkr",
+                    "krkr"
+                ],
+                "extensions": [
+                    ".krkr"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "krkr",
+                "scopeName": "source.krkr",
+                "path": "./syntaxes/krkr.tmLanguage.json"
+            }
+        ]
     }
 }
