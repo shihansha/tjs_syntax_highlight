@@ -20,6 +20,10 @@ import {
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
+import { ILexer } from './interfaces/ILexer';
+import { Lexer } from './lexer/lexer';
+import { TokenType } from './types/tokenType';
+import { Token } from './types/token';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -135,6 +139,17 @@ documents.onDidChangeContent(change => {
 });
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
+	const myLex: ILexer = new Lexer(textDocument.uri, textDocument.getText());
+	
+	let tok: Token;
+	let logs: string[] = [];
+	do {
+		tok = myLex.nextToken();
+		logs.push(`(${tok.range.start.line},${tok.range.start.character} - ${tok.range.end.line},${tok.range.end.character})[${tok.type}]: ${tok.value}`);
+	} while (tok.type !== TokenType.EOF);
+
+	connection.window.showInformationMessage(logs.join("\n"));
+
 	// In this simple example we get the settings for every validate run.
 	const settings = await getDocumentSettings(textDocument.uri);
 
