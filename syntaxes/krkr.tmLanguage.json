@@ -1107,7 +1107,7 @@
 					"end": "(/)([dgimsuy]*)",
 					"endCaptures": {
 						"1": {
-							"name": "punctuation.definition.string.end.slash,krkr"
+							"name": "punctuation.definition.string.end.slash.tjs.krkr"
 						},
 						"2": {
 							"name": "keyword.other.tjs.krkr"
@@ -1871,5 +1871,5 @@
 			}
 		}
 	},
-	"scopeName": "source.tjs.krkr"
+	"scopeName": "source.krkr"
 }
