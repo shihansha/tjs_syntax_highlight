@@ -9,12 +9,12 @@ import { KEYWORDS, TokenType } from "../types/tokenType";
 interface LexerContext {
     chunkIndex: number;
     position: IPosition;
-    mode: LexerMode;
 }
 
 interface LookAheadBuf {
     context: LexerContext;
     prefetchedToken: Token;
+    mode: LexerMode;
 }
 
 export class Lexer implements ILexer {
@@ -24,8 +24,7 @@ export class Lexer implements ILexer {
         position: {
             line: 0,
             character: 0
-        },
-        mode: LexerMode.TJS
+        }
     };
 
     private m_lookAheadBuf: LookAheadBuf | null = null;
@@ -49,7 +48,7 @@ export class Lexer implements ILexer {
 
     public lookAhead(mode: LexerMode): TokenType {
         if (this.m_lookAheadBuf) {
-            if (this.m_lookAheadBuf.context.mode === mode) {
+            if (this.m_lookAheadBuf.mode === mode) {
                 return this.m_lookAheadBuf.prefetchedToken.type;
             }
             else {
@@ -57,13 +56,20 @@ export class Lexer implements ILexer {
             }
         }
 
-        const lookAheadContext = JSON.parse(JSON.stringify(this.m_currentContext)) as LexerContext;
+        const lookAheadContext: LexerContext = {
+            chunkIndex: this.m_currentContext.chunkIndex,
+            position: {
+                line: this.m_currentContext.position.line,
+                character: this.m_currentContext.position.character
+            }
+        };
 
         const prefetchedToken = this.nextTokenInside(mode, lookAheadContext);
         
         this.m_lookAheadBuf = {
             context: lookAheadContext,
-            prefetchedToken: prefetchedToken
+            prefetchedToken: prefetchedToken,
+            mode: mode
         };
 
         return prefetchedToken.type;
@@ -71,7 +77,7 @@ export class Lexer implements ILexer {
 
     public nextToken(mode: LexerMode): Token {
         if (this.m_lookAheadBuf) {
-            if (this.m_lookAheadBuf.context.mode === mode) {
+            if (this.m_lookAheadBuf.mode === mode) {
                 this.m_currentContext = this.m_lookAheadBuf.context;
                 const token = this.m_lookAheadBuf.prefetchedToken;
                 this.m_lookAheadBuf = null;

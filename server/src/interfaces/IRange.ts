@@ -37,13 +37,13 @@ export namespace IRange {
                 return -1;
             }
         }
-        const mid = Math.floor(high - low);
+        const mid = Math.floor((high + low) / 2);
         const midRes = comparePosition(rangeProvider(mid), pos);
         if (midRes < 0) {
             return binarySearchInside(rangeProvider, pos, mid + 1, high);
         }
         else if (midRes > 0) {
-            return binarySearchInside(rangeProvider, pos, low, mid - 1);
+            return binarySearchInside(rangeProvider, pos, low, mid);
         }
         else {
             return mid;
