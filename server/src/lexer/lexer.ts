@@ -1,3 +1,4 @@
+import { stringify } from "querystring";
 import { ILexer } from "../interfaces/ILexer";
 import { IPosition } from "../interfaces/IPosition";
 import { IRange } from "../interfaces/IRange";
@@ -8,8 +9,8 @@ import { KEYWORDS, TokenType } from "../types/tokenType";
 export class Lexer implements ILexer {
 
     private m_currentPosition: IPosition = {
-        line: 1,
-        character: 1
+        line: 0,
+        character: 0
     };
 
     private m_chunkIndex = 0;
@@ -182,7 +183,7 @@ export class Lexer implements ILexer {
                 if (this.test("@\"") || this.test("@\'")) {
                     // TODO: deal with interpolated string
                     this.next(2);
-                    return new Token(TokenType.UNEXPECTED, this.getRange(-2), "@'");
+                    return new Token(TokenType.UNEXPECTED, this.getRange(-2), "@'", "Interpolated string is not supported");
                 }
                 else {
                     // macro,
@@ -316,7 +317,8 @@ export class Lexer implements ILexer {
                 }
             }
             case "~": this.next(1); return new Token(TokenType.OP_BNOT, this.getRange(-1), "~");
-
+            case "\"": return this.handleString("\"");
+            case "\'": return this.handleString("\'");
         }
 
         if (this.isCharacter(this.getLeadingCharacters())) {
@@ -363,15 +365,102 @@ export class Lexer implements ILexer {
                     return new Token(TokenType.NUMBER_OCTAL, range, numStr);
                 }
 
-                return new Token(TokenType.UNEXPECTED, range, numStr);
+                return new Token(TokenType.UNEXPECTED, range, numStr, "Illegal number");
             }
         }
 
         const counts = this.countToWhitespace();
         const invalidText = this.m_chunk.substring(this.m_chunkIndex, this.m_chunkIndex + counts);
         this.next(counts);
-        return new Token(TokenType.UNEXPECTED, this.getRange(-counts), invalidText);
+        return new Token(TokenType.UNEXPECTED, this.getRange(-counts), invalidText, "Illegal token");
     }
+
+    private handleString(leading: string) {
+        let res: RegExpExecArray | null;
+        if (leading === "\"") {
+            const pat = /^"((?:\\"|[^\r\n])*)"/;
+            res = pat.exec(this.m_chunk.substring(this.m_chunkIndex));
+        }
+        else { // leading === "\'"
+            const pat = /^'((?:\\'|[^\r\n])*)'/;
+            res = pat.exec(this.m_chunk.substring(this.m_chunkIndex));
+        }
+
+        if (res) {
+            const originalStr = res[1];
+            const { str, diagnostic } = this.escapeString(originalStr);
+            this.next(res[0].length);
+            if (diagnostic !== undefined) {
+                return new Token(TokenType.UNEXPECTED, this.getRange(-res[0].length), res[0], "Illegal string: " + diagnostic);
+            }
+            else {
+                return new Token(TokenType.STRING, this.getRange(-res[0].length), str);
+            }
+        }
+        else {
+            const toEOL = this.countToChangeLine();
+            const str = this.getLeadingCharacters(toEOL);
+            this.next(toEOL);
+            return new Token(TokenType.UNEXPECTED, this.getRange(-toEOL), str, "Unfinished string");
+        }
+    }
+
+    private escapeString(str: string): { str: string, diagnostic?: string } {
+        let buf = "";
+        while (str.length > 0) {
+            if (str[0] !== "\\") {
+                buf += str[0];
+                str = str.substring(1);
+                continue;
+            }
+            if (str.length === 1) {
+                // unfinished string
+                return { str: "", diagnostic: "unfinished string" };
+            }
+            switch(str[1]) {
+                case "a": buf += "\a"; str = str.substring(2); continue;
+                case "b": buf += "\b"; str = str.substring(2); continue;
+                case "f": buf += "\f"; str = str.substring(2); continue;
+                case "n": buf += "\n"; str = str.substring(2); continue;
+                case "r": buf += "\r"; str = str.substring(2); continue;
+                case "t": buf += "\t"; str = str.substring(2); continue;
+                case "v": buf += "\v"; str = str.substring(2); continue;
+                case "\"": buf += "\""; str = str.substring(2); continue;
+                case "\'": buf += "\'"; str = str.substring(2); continue;
+                case "\\": buf += "\\"; str = str.substring(2); continue;
+                case "x":
+                case "X": 
+                    {
+                        const pat = /^\\x([0-9a-fA-F]{1,4})/;
+                        const res = pat.exec(str);
+                        if (res) {
+                            const d = parseInt(res[1], 16);
+                            buf += String.fromCharCode(d);
+                            str = str.substring(res[0].length);
+                            continue;
+                        }
+                        else {
+                            // illegal number
+                            return { str: "", diagnostic: "\\x should be followed by number" };
+                        }
+                    }
+                default: return { str: "", diagnostic: `unsupported escape: \\${str[1]}` }; // illegal escape
+            }
+        }
+        return { str: buf };
+    }
+
+    private countToChangeLine(): number {
+        let count = 0;
+        while (this.m_restCharLength - count > 0) {
+            if (this.m_chunk[this.m_chunkIndex + count] == "\n") {
+                break;
+            }
+            count++;
+        }
+        return count;
+    }
+
 
     private countToWhitespace(): number {
         let count = 0;
@@ -458,7 +547,7 @@ export class Lexer implements ILexer {
 
     private incLine() {
         this.m_currentPosition.line++;
-        this.m_currentPosition.character = 1;
+        this.m_currentPosition.character = 0;
     }
 
     private next(n: number) {

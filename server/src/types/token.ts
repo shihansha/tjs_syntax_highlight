@@ -6,6 +6,7 @@ export class Token<T extends TokenType = TokenType> {
         public readonly type: T,
         public readonly range: IRange,
         public readonly value: string,
+        public readonly diagnostic?: string,
     ) { }
     
 }

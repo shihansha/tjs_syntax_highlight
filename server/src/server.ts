@@ -14,7 +14,9 @@ import {
 	CompletionItemKind,
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
-	InitializeResult
+	InitializeResult,
+	MarkupKind,
+	HoverParams
 } from 'vscode-languageserver/node';
 
 import {
@@ -24,6 +26,7 @@ import { ILexer } from './interfaces/ILexer';
 import { Lexer } from './lexer/lexer';
 import { TokenType } from './types/tokenType';
 import { Token } from './types/token';
+import { LexerTester } from './test/lexerTester';
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -59,7 +62,8 @@ connection.onInitialize((params: InitializeParams) => {
 			// Tell the client that this server supports code completion.
 			completionProvider: {
 				resolveProvider: true
-			}
+			},
+			hoverProvider: true
 		}
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -138,18 +142,11 @@ documents.onDidChangeContent(change => {
 	validateTextDocument(change.document);
 });
 
+const lexTester = new LexerTester();
+
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	const myLex: ILexer = new Lexer(textDocument.uri, textDocument.getText());
+	lexTester.lexDocument(textDocument.uri, textDocument.getText());
 	
-	let tok: Token;
-	let logs: string[] = [];
-	do {
-		tok = myLex.nextToken();
-		logs.push(`(${tok.range.start.line},${tok.range.start.character} - ${tok.range.end.line},${tok.range.end.character})[${tok.type}]: ${tok.value}`);
-	} while (tok.type !== TokenType.EOF);
-
-	connection.window.showInformationMessage(logs.join("\n"));
-
 	// In this simple example we get the settings for every validate run.
 	const settings = await getDocumentSettings(textDocument.uri);
 
@@ -219,6 +216,21 @@ connection.onCompletion(
 				data: 2
 			}
 		];
+	}
+);
+
+connection.onHover(
+	(_hoverParams: HoverParams) => {
+		const query = lexTester.queryDocument(_hoverParams.textDocument.uri, _hoverParams.position);
+		if (query) {
+			return {
+				contents: {
+					kind: MarkupKind.PlainText,
+					value: JSON.stringify(query)
+				}
+			}
+		}
+		return null;
 	}
 );
 

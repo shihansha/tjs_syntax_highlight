@@ -1544,8 +1544,20 @@
 			}
 		},
 		"identifier": {
-			"name": "variable.other.readwrite.tjs.krkr",
-			"match": "(?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*"
+			"patterns": [
+				{
+					"name": "variable.language.this.tjs.krkr",
+					"match": "(?<!\\.)\\b(this)\\b"
+				},
+				{
+					"name": "variable.language.super.tjs.krkr",
+					"match": "(?<!\\.)\\b(super)\\b"
+				},
+				{
+					"name": "variable.other.readwrite.tjs.krkr",
+					"match": "\\b(?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*\\b"		
+				}
+			]
 		},
 		"variable-declaration": {
 			"begin": "(\\bvar\\b)\\s+((?:[_[:alpha:]]|[^\\x00-\\xff])(?:[_[:alnum:]]|[^\\x00-\\xff])*)\\s*(?=,|;|=|\\))",
