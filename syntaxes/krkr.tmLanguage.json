@@ -1303,7 +1303,7 @@
 			]
 		},
 		"octal-string-literal": {
-			"name": "string.quated.other.octal.tjs.krkr",
+			"name": "string.quoted.other.octal.tjs.krkr",
 			"begin": "<%",
 			"beginCaptures": {
 				"0": {

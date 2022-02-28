@@ -2,6 +2,7 @@ import { Position } from "vscode-languageserver-textdocument";
 import { IPosition } from "../interfaces/IPosition";
 import { IRange } from "../interfaces/IRange";
 import { Lexer } from "../lexer/lexer";
+import { LexerMode } from "../types/lexerMode";
 import { Token } from "../types/token";
 import { TokenType } from "../types/tokenType";
 
@@ -13,7 +14,7 @@ export class LexerTester {
         const lexer = new Lexer(docUri, content);
         const tokenArr: Token[] = [];
         while (true) {
-            const tok = lexer.nextToken();
+            const tok = lexer.nextToken(LexerMode.TJS);
             if (tok.type === TokenType.EOF) {
                 break;
             }

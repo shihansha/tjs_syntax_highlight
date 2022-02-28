@@ -25,6 +25,12 @@ export enum TokenType {
     SEP_LOCTSTR = "<%",
     SEP_ROCTSTR = "%>",
     SEP_AT = "@",
+    SEP_QUOTE_DOUBLE = "\"",
+    SEP_QUOTE_SINGLE = "'",
+    SEP_LINTER_DOLLAR = "${",
+    SEP_RINTER_DOLLAR = "}",
+    SEP_LINTER_AND = "&",
+    SEP_RINTER_AND = ";",
 
     // operators
     OP_IF = "if",
@@ -114,6 +120,7 @@ export enum TokenType {
     NUMBER_OCTAL = "$NUMBER_OCTAL",
     NUMBER_HEXIMAL = "$NUMBER_HEXIMAL",
     STRING = "$STRING",
+    STRING_INTERPOLATED = "$STRING_INTERPOLATED",
     REGEX = "$REGEX",
 }
 
