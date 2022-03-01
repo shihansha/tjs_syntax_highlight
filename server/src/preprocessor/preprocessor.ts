@@ -1,4 +1,5 @@
 import { IDefineList } from "../interfaces/IDefineList";
+import { IPosition } from "../interfaces/IPosition";
 import { IPreprocessorOutput } from "../interfaces/IPreprocessorOutput";
 
 export class Preprocessor {
@@ -10,6 +11,10 @@ export class Preprocessor {
 
     private m_head = 0;
     private m_output = "";
+    private m_position: IPosition = {
+        line: 0,
+        character: 0
+    };
 
     private test(str: string): boolean {
         return this.chunkName.startsWith(str, this.m_head);
@@ -17,16 +22,29 @@ export class Preprocessor {
     private rest() {
         return this.m_chunk.substring(this.m_head);
     }
-    private emit(str: string) {
-        this.m_output += str;
-        this.m_head += str.length;
-    }
+
     private emitIdentity(len: number) {
-        if (this.m_head + len > this.m_chunk.length) {
-            len = this.m_chunk.length - this.m_head;
+        let toAppend = "";
+        for (let i = 0; i < len; i++) {
+            if (this.m_head >= this.m_chunk.length) {
+                break;
+            }
+            toAppend += this.m_chunk[this.m_head];
+
+            if (this.m_chunk[this.m_head] === "\n") {
+                this.m_position.line++;
+                this.m_position.character = 0;
+            }
+            else if (this.m_chunk[this.m_head] === "\r") {
+
+            }
+            else {
+                this.m_position.character++;
+            }
+
+            this.m_head++;
         }
-        this.m_output += this.m_chunk.substring(this.m_head, this.m_head + len);
-        this.m_head += len;
+        this.m_output += toAppend;
     }
     private emitEmpty(len: number) {
         let toAppend = "";
@@ -40,6 +58,18 @@ export class Preprocessor {
             else {
                 toAppend += " ";
             }
+
+            if (this.m_chunk[this.m_head] === "\n") {
+                this.m_position.line++;
+                this.m_position.character = 0;
+            }
+            else if (this.m_chunk[this.m_head] === "\r") {
+
+            }
+            else {
+                this.m_position.character++;
+            }
+
             this.m_head++;
         }
         this.m_output += toAppend;
@@ -47,7 +77,7 @@ export class Preprocessor {
     private emitUntilEOL() {
         while (this.m_head < this.m_chunk.length) {
             const c = this.m_chunk[this.m_head];
-            this.emit(c);
+            this.emitIdentity(1);
             this.m_head++;
             if (c === "\n") {
                 break;
@@ -70,6 +100,7 @@ export class Preprocessor {
                 }
                 else {
                     // macro
+                    this.handleMacro();
                 }
 
             }
@@ -83,7 +114,20 @@ export class Preprocessor {
     }
 
     private handleMacro() {
-        
+        const pat = /((?:[a-zA-Z]|[^\x00-\xff])(?:[a-zA-Z0-9]|[^\x00-\xff])*)(?=\()/;
+        const res = pat.exec(this.m_chunk.substring(this.m_head));
+        if (res) {
+            const macroName = res[1];
+            // parse expression
+            while (this.m_head < this.m_chunk.length) {
+                const c = this.m_chunk[this.m_head];
+                
+            }
+        }
+        else {
+            // illegal macro/macro name
+            this.emitUntilEOL();
+        }
     }
 
     private handleString(quoteType: "\"" | "'") {

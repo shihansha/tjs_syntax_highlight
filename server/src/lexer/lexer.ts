@@ -19,13 +19,7 @@ interface LookAheadBuf {
 
 export class Lexer implements ILexer {
 
-    private m_currentContext: LexerContext = {
-        chunkIndex: 0,
-        position: {
-            line: 0,
-            character: 0
-        }
-    };
+    private m_currentContext: LexerContext;
 
     private m_lookAheadBuf: LookAheadBuf | null = null;
 
@@ -44,7 +38,21 @@ export class Lexer implements ILexer {
     public constructor(
         public readonly chunkName: string,
         private readonly m_chunk: string,
-    ) { }
+        inheritedContext?: LexerContext,
+    ) { 
+        if (inheritedContext) {
+            this.m_currentContext = JSON.parse(JSON.stringify(inheritedContext));
+        }
+        else {
+            this.m_currentContext = {
+                chunkIndex: 0,
+                position: {
+                    line: 0,
+                    character: 0
+                }
+            };
+        }
+    }
 
     public lookAhead(mode: LexerMode): TokenType {
         if (this.m_lookAheadBuf) {
@@ -451,6 +459,157 @@ export class Lexer implements ILexer {
                 return this.handleInterpolatedString(context, "'");
             }
         }
+        else if (mode === LexerMode.TJSMacro) {
+            this.skipWhitespace(context);
+
+            if (context.chunkIndex === this.m_chunk.length) {
+                return new Token(TokenType.EOF, this.getRange(context, 1), "");
+            }
+    
+            switch (this.getLeadingCharacters(context)) {
+                case "*": {
+                    this.next(context, 1); 
+                    return new Token(TokenType.VARARG, this.getRange(context, -1), "*");
+                }
+                case ",": this.next(context, 1); return new Token(TokenType.SEP_COMMA, this.getRange(context, -1), ",");
+                case "=": {
+                    if (this.test(context, "==")) {
+                        this.next(context, 2);
+                        return new Token(TokenType.OP_TPYE_EQ, this.getRange(context, -2), "==");
+                    }
+                    else {
+                        this.next(context, 1);
+                        return new Token(TokenType.OP_ASSIGN, this.getRange(context, -1), "=");
+                    }
+                }
+                case "(": this.next(context, 1); return new Token(TokenType.SEP_LPAREN, this.getRange(context, -1), "(");
+                case ")": this.next(context, 1); return new Token(TokenType.SEP_RPAREN, this.getRange(context, -1), ")");
+                case "%": {
+                    this.next(context, 1);
+                    return new Token(TokenType.OP_MOD, this.getRange(context, -1), "%");
+                }
+                case "/": {
+                    this.next(context, 1);
+                    return new Token(TokenType.OP_DIV, this.getRange(context, -1), "/");
+                }
+                case "<": {
+                    if (this.test(context, "<=")) {
+                        this.next(context, 2);
+                        return new Token(TokenType.OP_LE, this.getRange(context, -2), "<=");
+                    }
+                    else {
+                        this.next(context, 1);
+                        return new Token(TokenType.OP_LT, this.getRange(context, -1), "<");
+                    }
+                }
+                case "&": {
+                    if (this.test(context, "&&")) {
+                        this.next(context, 2);
+                        return new Token(TokenType.OP_AND, this.getRange(context, -2), "&&");
+                    }
+                    else {
+                        this.next(context, 1);
+                        return new Token(TokenType.OP_BAND, this.getRange(context, -1), "&");
+                    }
+                }
+                case "|": {
+                    if (this.test(context, "||")) {
+                        this.next(context, 2);
+                        return new Token(TokenType.OP_OR, this.getRange(context, -2), "||");
+                    }
+                    else {
+                        this.next(context, 1);
+                        return new Token(TokenType.OP_BOR, this.getRange(context, -1), "|");
+                    }
+                }
+                case "^": {
+                    this.next(context, 1);
+                    return new Token(TokenType.OP_BXOR, this.getRange(context, -1), "^");
+                }
+                case "-": {
+                    this.next(context, 1);
+                    return new Token(TokenType.OP_MINUS, this.getRange(context, -1), "-");
+                }
+                case "+": {
+                    this.next(context, 1);
+                    return new Token(TokenType.OP_ADD, this.getRange(context, -1), "+");
+                }
+                case ">": {
+                    if (this.test(context, ">=")) {
+                        this.next(context, 2);
+                        return new Token(TokenType.OP_GE, this.getRange(context, -2), ">=");
+                    }
+                    else {
+                        this.next(context, 1);
+                        return new Token(TokenType.OP_GT, this.getRange(context, -1), ">");
+                    }
+                }
+                case "!": {
+                    if (this.test(context, "!=")) {
+                        this.next(context, 2);
+                        return new Token(TokenType.OP_NE, this.getRange(context, -2), "!=");
+                    }
+                    else {
+                        this.next(context, 1);
+                        return new Token(TokenType.OP_NOT, this.getRange(context, -1), "!");
+                    }
+                }
+            }
+            if (this.isCharacter(this.getLeadingCharacters(context))) {
+                const pat = /^(?:[_a-zA-Z]|[^\x00-\xff])(?:[_a-zA-Z0-9]|[^\x00-\xff])*/;
+                const res = pat.exec(this.m_chunk.substring(context.chunkIndex));
+                if (res) {
+                    const len = res[0].length;
+                    this.next(context, len);
+                    const type = KEYWORDS[res[0]];
+                    if (type !== undefined) {
+                        return new Token(type, this.getRange(context, -len), res[0]);
+                    }
+                    else {
+                        return new Token(TokenType.IDENTIFIER, this.getRange(context, -len), res[0]);
+                    }
+                }
+            }
+            else if (this.isNumber(this.getLeadingCharacters(context))) {
+                const pattern0 = /(?<!\w)\.?\d(?:(?:[0-9a-zA-Z\._])|(?<=[eEpP])[+-])*/;
+                const result0 = pattern0.exec(this.m_chunk.substring(context.chunkIndex));
+                if (result0) {
+                    const decPat = /(^(?=[1-9]))([0-9]*)$/;
+                    const binPat = /(^0[bB])([01]*)$/;
+                    const octPat = /(^0(?=[0-7]))([0-7]*)$/;
+                    const hexPat = /(^0[xX])([0-9a-fA-F]*)$/;
+                    
+                    const numStr = result0[0];
+                    this.next(context, numStr.length);
+                    const range = this.getRange(context, -numStr.length);
+                    const decRes = decPat.exec(numStr);
+                    if (decRes) {
+                        return new Token(TokenType.NUMBER_DECIMAL, range, numStr);
+                    }
+                    const hexRes = hexPat.exec(numStr);
+                    if (hexRes) {
+                        return new Token(TokenType.NUMBER_HEXIMAL, range, numStr);
+                    }
+                    const binRes = binPat.exec(numStr);
+                    if (binRes) {
+                        return new Token(TokenType.NUMBER_BINARY, range, numStr);
+                    }
+                    const octRes = octPat.exec(numStr);
+                    if (octRes) {
+                        return new Token(TokenType.NUMBER_OCTAL, range, numStr);
+                    }
+    
+                    return new Token(TokenType.UNEXPECTED, range, numStr, "Illegal number");
+                }
+            }
+    
+            const counts = this.countToWhitespace(context);
+            const invalidText = this.m_chunk.substring(context.chunkIndex, context.chunkIndex + counts);
+            this.next(context, counts);
+            return new Token(TokenType.UNEXPECTED, this.getRange(context, -counts), invalidText, "Illegal token");
+    
+
+        }
 
         throw new Error("no touch");
     }
@@ -583,6 +742,25 @@ export class Lexer implements ILexer {
 
     private isCharacter(c: string) {
         return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c == "_") || (c > "\xff");
+    }
+
+    private skipWhitespace(context: LexerContext) {
+        while (this.restCharLength(context) > 0) {
+            if (this.test(context, "\r\n") || this.test(context, "\n\r")) {
+                this.next(context, 2);
+                this.incLine(context);
+            }
+            else if (this.test(context, "\r") || this.test(context, "\n")) {
+                this.next(context, 1);
+                this.incLine(context);
+            }
+            else if (this.isWhitespace(this.getLeadingCharacters(context))) {
+                this.next(context, 1);
+            }
+            else {
+                break;
+            }
+        }
     }
 
     private skipWhitespaceAndComment(context: LexerContext) {
