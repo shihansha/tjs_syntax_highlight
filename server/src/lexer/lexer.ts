@@ -557,10 +557,10 @@ export class Lexer implements ILexer {
         const originalStr = this.m_chunk.substring(context.chunkIndex);
         let pat: RegExp;
         if (quote === "\"") {
-            pat = /^((?:\\"|\\$|\\&|[^"$&\r\n])*)(?=\$\{|&|")/;
+            pat = /^((?:\\"|\\\$|\\&|[^"$&\r\n])*)(?=\$\{|&|")/;
         }
         else { // quote === "'"
-            pat = /^((?:\\'|\\$|\\&|[^'$&\r\n])*)(?=\$\{|&|')/;
+            pat = /^((?:\\'|\\\$|\\&|[^'$&\r\n])*)(?=\$\{|&|')/;
         }
         const res = pat.exec(originalStr);
         if (res) {
