@@ -31,6 +31,10 @@ export class Lexer implements ILexer {
         return this.m_currentContext.position;
     }
 
+    public get chunkIndex(): number {
+        return this.m_currentContext.chunkIndex;
+    }
+
     private getLeadingCharacters(context: LexerContext, n: number = 1) {
         return this.m_chunk.substring(context.chunkIndex, context.chunkIndex + n);
     }
@@ -57,6 +61,7 @@ export class Lexer implements ILexer {
     public lookAhead(mode: LexerMode): TokenType {
         if (this.m_lookAheadBuf) {
             if (this.m_lookAheadBuf.mode === mode) {
+                // console.log("ahead: " + this.m_lookAheadBuf.prefetchedToken.type);
                 return this.m_lookAheadBuf.prefetchedToken.type;
             }
             else {
@@ -96,7 +101,8 @@ export class Lexer implements ILexer {
             }
         }
 
-        return this.nextTokenInside(mode, this.m_currentContext);
+        const tok = this.nextTokenInside(mode, this.m_currentContext);
+        return tok;
     }
 
     private nextTokenInside(mode: LexerMode, context: LexerContext): Token {
@@ -141,7 +147,7 @@ export class Lexer implements ILexer {
                     }
                     else if (this.test(context, "==")) {
                         this.next(context, 2);
-                        return new Token(TokenType.OP_TPYE_EQ, this.getRange(context, -2), "==");
+                        return new Token(TokenType.OP_EQ, this.getRange(context, -2), "==");
                     }
                     else {
                         this.next(context, 1);
@@ -475,7 +481,7 @@ export class Lexer implements ILexer {
                 case "=": {
                     if (this.test(context, "==")) {
                         this.next(context, 2);
-                        return new Token(TokenType.OP_TPYE_EQ, this.getRange(context, -2), "==");
+                        return new Token(TokenType.OP_EQ, this.getRange(context, -2), "==");
                     }
                     else {
                         this.next(context, 1);

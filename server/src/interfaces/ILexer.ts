@@ -10,6 +10,11 @@ export interface ILexer {
     get chunkName(): string;
 
     /**
+     * 下一个未解析字符的位置。
+     */
+    get chunkIndex(): number;
+
+    /**
      * 文本中尚未解析部分的起始位置。
      */
     get currentPosition(): IPosition;

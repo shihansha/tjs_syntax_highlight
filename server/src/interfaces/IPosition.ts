@@ -25,4 +25,10 @@ export namespace IPosition {
             }
         }
     }
+    export function clone(o: IPosition): IPosition {
+        return {
+            line: o.line,
+            character: o.character
+        };
+    }
 }

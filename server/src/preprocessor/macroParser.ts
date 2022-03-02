@@ -1,7 +1,7 @@
 /**
  * expression lists: 
  * 
- * E := exp0 ')'
+ * E := '(' exp0 ')'
  * exp0 := exp1 ',' exp1 | exp1
  * exp1 := %IDENTIFER '=' exp2 | exp2
  * exp2 := exp3 '||' exp3 | exp3
@@ -20,12 +20,31 @@
  */
 
 import { IDefineList } from "../interfaces/IDefineList";
+import { IDiagnostic } from "../interfaces/IDiagnostic";
+import { ILexer } from "../interfaces/ILexer";
 import { IPosition } from "../interfaces/IPosition";
 import { Lexer } from "../lexer/lexer";
-import { Diagnostic } from "../types/diagnostic";
 import { LexerMode } from "../types/lexerMode";
-import { Token } from "../types/token";
 import { TokenType } from "../types/tokenType";
+
+type MacroParserResult = MacroParserResultSuccess | MacroParserResultFail;
+
+interface MacroParserResultBase {
+    success: boolean,
+    chunkIndex: number,
+    position: IPosition,
+    def: IDefineList
+}
+
+interface MacroParserResultSuccess extends MacroParserResultBase {
+    success: true,
+    value: number,
+}
+
+interface MacroParserResultFail extends MacroParserResultBase {
+    success: false,
+    diagnostic: IDiagnostic
+}
 
 abstract class MacroExpr {
     abstract eval(): number;
@@ -60,7 +79,7 @@ class MacroVariableExpr extends MacroExpr {
 }
 
 export class MacroParser {
-    private readonly m_lex: Lexer;
+    private readonly m_lex: ILexer;
     private readonly m_mode = LexerMode.TJSMacro;
     public constructor(
         public readonly chunkName: string,
@@ -71,33 +90,56 @@ export class MacroParser {
     ) { 
         this.m_lex = new Lexer(chunkName, m_chunk, { 
             chunkIndex: m_chunkIndex, 
-            position: m_position 
+            position: IPosition.clone(m_position) 
         });
     }
-    private m_diagnostic?: Diagnostic;
-    public get diagnostic() {
-        return this.m_diagnostic;
-    }
+    private m_diagnostic?: IDiagnostic;
 
-    public parse(): number {
-        return this.parseE();
+    public parse(): MacroParserResult {
+        const res = this.parseE();
+        if (isNaN(res)) {
+            return {
+                success: false,
+                diagnostic: this.m_diagnostic!,
+                chunkIndex: this.m_lex.chunkIndex,
+                position: this.m_lex.currentPosition,
+                def: this.m_defines
+            };
+        }
+        else {
+            return {
+                success: true,
+                value: res,
+                chunkIndex: this.m_lex.chunkIndex,
+                position: this.m_lex.currentPosition,
+                def: this.m_defines
+            };
+        }
     }
 
     private parseE(): number {
         try {
+            this.m_lex.nextToken(this.m_mode); // '('
             const result0 = this.parseExp0();
             if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
+                this.m_lex.nextToken(this.m_mode);
                 return result0.eval();
             }
             else {
                 const tok = this.m_lex.nextToken(this.m_mode);
-                this.m_diagnostic = new Diagnostic(tok.range, "')' expected");
+                this.m_diagnostic = IDiagnostic.create(tok.range, "')' expected");
             }
-            this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_LPAREN]);
+            this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_RPAREN]);
+            if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
+                this.m_lex.nextToken(this.m_mode);
+            }
             return NaN;
         }
         catch {
-            this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_LPAREN]);
+            this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_RPAREN]);
+            if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
+                this.m_lex.nextToken(this.m_mode);
+            }
             return NaN;
         }
     }
@@ -108,9 +150,12 @@ export class MacroParser {
         const op = this.m_lex.lookAhead(this.m_mode);
         if (op === TokenType.SEP_COMMA) {
             this.m_lex.nextToken(this.m_mode);
+            const par1 = this.parseExp1();
+            return par1;
         }
-        const par1 = this.parseExp1();
-        return par1;
+        else {
+            return par0;
+        }
     }
     private parseExp1(): MacroExpr {
         const par0t = this.m_lex.lookAhead(this.m_mode);
@@ -119,10 +164,13 @@ export class MacroParser {
             const op = this.m_lex.lookAhead(this.m_mode);
             if (op === TokenType.OP_ASSIGN) {
                 this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp2();
+                par0.assign(par1.eval());
+                return par0;
             }
-            const par1 = this.parseExp2();
-            par0.assign(par1.eval());
-            return par0;
+            else {
+                return par0;
+            }
         }
         const par0 = this.parseExp2();
         return par0;
@@ -274,14 +322,28 @@ export class MacroParser {
     }
     private parseExp12(): MacroExpr {
         const op0 = this.m_lex.lookAhead(this.m_mode);
+        let par0: MacroExpr;
         if (op0 === TokenType.SEP_LPAREN) {
-            const par0 = this.parseExp0();
+            this.m_lex.nextToken(this.m_mode);
+            try {
+                par0 = this.parseExp0();
+            }
+            catch (e) {
+                this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_RPAREN]);
+                if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
+                    this.m_lex.nextToken(this.m_mode);
+                }
+                console.log(new Error().stack);
+                throw e;
+            }
             const op1 = this.m_lex.nextToken(this.m_mode);
             if (op1.type !== TokenType.SEP_RPAREN) {
-                this.m_diagnostic = {
-                    range: op1.range,
-                    diagnostic: "')' expected. " + (op1.diagnostic ?? "")
-                };
+                this.m_diagnostic = IDiagnostic.create(op1.range, "')' expected. " + (op1.diagnostic ?? ""));
+                this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_RPAREN]);
+                if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
+                    this.m_lex.nextToken(this.m_mode);
+                }
+                console.log(new Error().stack);
                 throw new Error();
             }
             return par0;
@@ -300,10 +362,8 @@ export class MacroParser {
             return this.parseIdentifier();
         }
         const par0v = this.m_lex.nextToken(this.m_mode);
-        this.m_diagnostic = {
-            range: par0v.range,
-            diagnostic: "number or identifier expected. " + (par0v.diagnostic ?? "")
-        };
+        this.m_diagnostic = IDiagnostic.create(par0v.range, "number or identifier expected. " + (par0v.diagnostic ?? ""));
+        console.log(new Error().stack);
         throw new Error();
 }
     private parseNumber(): MacroNumberExpr {

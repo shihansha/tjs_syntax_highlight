@@ -63,7 +63,7 @@ connection.onInitialize((params: InitializeParams) => {
 			completionProvider: {
 				resolveProvider: true
 			},
-			hoverProvider: true
+			hoverProvider: true,
 		}
 	};
 	if (hasWorkspaceFolderCapability) {
@@ -188,7 +188,6 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 		}
 		diagnostics.push(diagnostic);
 	}
-
 	// Send the computed diagnostics to VSCode.
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
