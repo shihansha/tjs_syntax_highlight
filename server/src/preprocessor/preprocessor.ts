@@ -116,7 +116,7 @@ export class Preprocessor {
                 }
                 else {
                     // macro
-                    this.handleMacro(this.m_def);
+                    this.handleMacro();
                 }
 
             }
@@ -134,7 +134,8 @@ export class Preprocessor {
         return {
             chunk: this.m_output,
             defines: this.m_def,
-            disabledArea: this.m_disabledArea
+            disabledArea: this.m_disabledArea,
+            diagnostics: this.diagnostics
         };
     }
 
@@ -161,7 +162,7 @@ export class Preprocessor {
         }
     };
 
-    private handleMacro(def: IDefineList) {
+    private handleMacro() {
         const posSave = IPosition.clone(this.m_position);
         const pat = /@((?:[a-zA-Z]|[^\x00-\xff])(?:[a-zA-Z0-9]|[^\x00-\xff])*)[\s\r\n]*/;
         const res = pat.exec(this.m_chunk.substring(this.m_head));
@@ -170,22 +171,31 @@ export class Preprocessor {
             this.emitEmpty(res[0].length ); // '@' [macroName] [optinal_spaces]
             if (this.test("(")) {
                 // parse expression
-                const macroParser = new MacroParser(this.chunkName, this.m_chunk, this.m_head, this.m_position, def);
+                const macroParser = new MacroParser(this.chunkName, this.m_chunk, this.m_head, this.m_position, this.m_def);
                 const macroParserResult = macroParser.parse();
                 // console.log(JSON.stringify(macroParserResult));
                 const macroRange: IRange = {
                     start: posSave,
                     end: IPosition.clone(this.m_position)
                 };
-                this.m_def = def;
                 this.emitEmpty(macroParserResult.chunkIndex - this.m_head); // '(' [macro_expr] ')'
+
+                // only accept define-list changes when current code block is active
+                if (this.ifStackPeek()) {
+                    this.m_def = macroParserResult.def;
+                }
                 if (macroParserResult.success) {
                     const macroValue = macroParserResult.value;
                     if (macroName === "set") {
                         // do nothing
                     }
                     else if (macroName === "if") {
-                        this.handleIf(macroValue);
+                        if (this.ifStackPeek()) {
+                            this.handleIf(macroValue);
+                        }
+                        else {
+                            this.handleIf(0);
+                        }
                     }
                     else if (macroName === "endif") {
                         this.diagnostics.push(IDiagnostic.create(macroRange, "'endif' should not have parameters."));
@@ -197,6 +207,15 @@ export class Preprocessor {
                 }
                 else {
                     this.diagnostics.push(macroParserResult.diagnostic);
+                    if (macroName === "set") {
+
+                    }
+                    else if (macroName === "if") {
+                        this.handleIf(1);
+                    }
+                    else if (macroName === "endif") {
+                        this.handleEndif(macroRange, posSave);
+                    }
                 }
             }
             else {
@@ -208,8 +227,13 @@ export class Preprocessor {
                     this.diagnostics.push(IDiagnostic.create(macroRange, "'set' should have parameters."));
                 }
                 else if (macroName === "if") {
-                    this.diagnostics.push(IDiagnostic.create(macroRange, "'set' should have parameters."));
-                    this.m_ifStack.push(true);
+                    this.diagnostics.push(IDiagnostic.create(macroRange, "'if' should have parameters."));
+                    if (this.ifStackPeek()) {
+                        this.handleIf(1);
+                    }
+                    else {
+                        this.handleIf(0);
+                    }
                 }
                 else if (macroName === "endif") {
                     this.handleEndif(macroRange, posSave);

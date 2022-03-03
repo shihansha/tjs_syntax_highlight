@@ -1,4 +1,5 @@
 import { Position } from "vscode-languageserver-textdocument";
+import { IDiagnostic } from "../interfaces/IDiagnostic";
 import { IPosition } from "../interfaces/IPosition";
 import { IRange } from "../interfaces/IRange";
 import { Lexer } from "../lexer/lexer";
@@ -106,11 +107,13 @@ export class LexerTester {
         }
     }
 
-    lexDocument(docUri: string, content: string) {
+    lexDocument(docUri: string, content: string): IDiagnostic[] {
         const lexer = new Lexer(docUri, content);
         const tokenArr: Token[] = [];
         this.easyParser(lexer, tokenArr);
+        const diagnostics = tokenArr.filter(t => t.diagnostic !== undefined).map(t => IDiagnostic.create(t.range, t.diagnostic!));
         this.tokenRepo.set(docUri, tokenArr);
+        return diagnostics;
     }
 
     queryDocument(docUri: string, pos: IPosition) {

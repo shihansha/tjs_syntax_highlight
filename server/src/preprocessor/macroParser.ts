@@ -81,17 +81,19 @@ class MacroVariableExpr extends MacroExpr {
 export class MacroParser {
     private readonly m_lex: ILexer;
     private readonly m_mode = LexerMode.TJSMacro;
+    private readonly m_defines: IDefineList;
     public constructor(
         public readonly chunkName: string,
         m_chunk: string,
         m_chunkIndex: number,
         m_position: IPosition,
-        private readonly m_defines: IDefineList,
+        defines: IDefineList,
     ) { 
         this.m_lex = new Lexer(chunkName, m_chunk, { 
             chunkIndex: m_chunkIndex, 
             position: IPosition.clone(m_position) 
         });
+        this.m_defines = IDefineList.clone(defines);
     }
     private m_diagnostic?: IDiagnostic;
 
