@@ -380,7 +380,7 @@ export class Lexer implements ILexer {
                 const pattern0 = /(?<!\w)\.?\d(?:(?:[0-9a-zA-Z\._])|(?<=[eEpP])[+-])*/;
                 const result0 = pattern0.exec(this.m_chunk.substring(context.chunkIndex));
                 if (result0) {
-                    const decPat = /(^(?=[1-9\.]))([0-9]*)((?:(?<=[0-9])|\.(?=[0-9])))([0-9]*)([eE](\+?)(\-?)([0-9]*))?$/;
+                    const decPat = /(^(?=[0-9\.])(?!0[xXbB\d]))([0-9]*)((?:(?<=[0-9])|\.(?=[0-9])))([0-9]*)([eE](\+?)(\-?)([0-9]*))?$/;
                     const binPat = /(^0[bB])([01]*)((?:(?<=[01])|\.(?=[01])))([01]*)([pP](\+?)(\-?)([01]*))?$/;
                     const octPat = /(^0(?=[0-7]))([0-7]*)((?:(?<=[0-7])|\.(?=[0-7])))([0-7]*)([pP](\+?)(\-?)([0-7]*))?$/;
                     const hexPat = /(^0[xX])([0-9a-fA-F]*)((?:(?<=[0-9a-fA-F])|\.(?=[0-9a-fA-F])))([0-9a-fA-F]*)([pP](\+?)(\-?)([0-9a-fA-F]*))?$/;
@@ -580,7 +580,7 @@ export class Lexer implements ILexer {
                 const pattern0 = /(?<!\w)\.?\d(?:(?:[0-9a-zA-Z\._])|(?<=[eEpP])[+-])*/;
                 const result0 = pattern0.exec(this.m_chunk.substring(context.chunkIndex));
                 if (result0) {
-                    const decPat = /(^(?=[1-9]))([0-9]*)$/;
+                    const decPat = /(^(?=[0-9])(?!0[xXbB\\d]))([0-9]*)$/;
                     const binPat = /(^0[bB])([01]*)$/;
                     const octPat = /(^0(?=[0-7]))([0-7]*)$/;
                     const hexPat = /(^0[xX])([0-9a-fA-F]*)$/;

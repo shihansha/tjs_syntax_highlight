@@ -172,6 +172,7 @@ export class Preprocessor {
                 // parse expression
                 const macroParser = new MacroParser(this.chunkName, this.m_chunk, this.m_head, this.m_position, def);
                 const macroParserResult = macroParser.parse();
+                // console.log(JSON.stringify(macroParserResult));
                 const macroRange: IRange = {
                     start: posSave,
                     end: IPosition.clone(this.m_position)
@@ -184,29 +185,11 @@ export class Preprocessor {
                         // do nothing
                     }
                     else if (macroName === "if") {
-                        if (macroValue === 0) {
-                            this.m_disabledBlockPosStack.push(IPosition.clone(this.m_position));
-                            this.m_ifStack.push(false);
-                        }
-                        else {
-                            this.m_ifStack.push(true);
-                        }
+                        this.handleIf(macroValue);
                     }
                     else if (macroName === "endif") {
                         this.diagnostics.push(IDiagnostic.create(macroRange, "'endif' should not have parameters."));
-                        if (this.m_ifStack.length === 0) {
-                            this.diagnostics.push(IDiagnostic.create(macroRange, "unmatched 'endif'."));
-                        }
-                        else {
-                            const isDisabled = this.m_ifStack.pop();
-                            if (isDisabled) {
-                                const disabledBlockStart = this.m_disabledBlockPosStack.pop()!;
-                                this.m_disabledArea.push({
-                                    start: disabledBlockStart,
-                                    end: IPosition.clone(posSave)
-                                });
-                            }
-                        }
+                        this.handleEndif(macroRange, posSave);
                     }
                     else {
                         this.diagnostics.push(IDiagnostic.create(macroRange, `unsupported macro: '${macroName}'`));
@@ -229,12 +212,7 @@ export class Preprocessor {
                     this.m_ifStack.push(true);
                 }
                 else if (macroName === "endif") {
-                    if (this.m_ifStack.length === 0) {
-                        this.diagnostics.push(IDiagnostic.create(macroRange, "unmatched 'endif'."));
-                    }
-                    else {
-                        this.m_ifStack.pop();
-                    }
+                    this.handleEndif(macroRange, posSave);
                 }
                 else {
                     this.diagnostics.push(IDiagnostic.create(macroRange, `unsupported macro: '${macroName}'`));
@@ -244,6 +222,32 @@ export class Preprocessor {
         else {
             // illegal macro/macro name
             this.emitUntilEOL();
+        }
+    }
+
+    private handleEndif(macroRange: IRange, posSave: IPosition) {
+        if (this.m_ifStack.length === 0) {
+            this.diagnostics.push(IDiagnostic.create(macroRange, "unmatched 'endif'."));
+        }
+        else {
+            const isDisabled = this.m_ifStack.pop();
+            if (!isDisabled) {
+                const disabledBlockStart = this.m_disabledBlockPosStack.pop()!;
+                this.m_disabledArea.push({
+                    start: disabledBlockStart,
+                    end: IPosition.clone(posSave)
+                });
+            }
+        }
+    }
+
+    private handleIf(macroValue: number) {
+        if (macroValue === 0) {
+            this.m_disabledBlockPosStack.push(IPosition.clone(this.m_position));
+            this.m_ifStack.push(false);
+        }
+        else {
+            this.m_ifStack.push(true);
         }
     }
 

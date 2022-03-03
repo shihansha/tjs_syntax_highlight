@@ -3,8 +3,13 @@
 @if(3==2)
 var yahu = "hello yahu!";
 @endif
-@if (a == 1)
-yahu = "hero"
-
+@if (a == 2)
+yahu = "hero";
+@endif
+@if(0)
+yahu = "hero";
+@endif
+@if(1)
+yahu = "super hero";
 @endif
 "test end"

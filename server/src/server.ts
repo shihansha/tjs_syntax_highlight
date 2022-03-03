@@ -16,7 +16,8 @@ import {
 	TextDocumentSyncKind,
 	InitializeResult,
 	MarkupKind,
-	HoverParams
+	HoverParams,
+	NotificationType
 } from 'vscode-languageserver/node';
 
 import {
@@ -27,6 +28,17 @@ import { Lexer } from './lexer/lexer';
 import { TokenType } from './types/tokenType';
 import { Token } from './types/token';
 import { LexerTester } from './test/lexerTester';
+import { IRange } from './interfaces/IRange';
+import { Preprocessor } from './preprocessor/preprocessor';
+
+interface InactiveRegionParams {
+    range: IRange[],
+    fileUri: string
+}
+
+namespace KrkrNotificationType {
+    export const InactiveRegionNotification: NotificationType<InactiveRegionParams> = new NotificationType("krkrtools/inactiveRegions");
+}
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -145,8 +157,12 @@ documents.onDidChangeContent(change => {
 const lexTester = new LexerTester();
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	lexTester.lexDocument(textDocument.uri, textDocument.getText());
-	
+	const preProcessResult = new Preprocessor(textDocument.uri, textDocument.getText(), {}).run();
+	lexTester.lexDocument(textDocument.uri, preProcessResult.chunk);
+	connection.sendNotification(KrkrNotificationType.InactiveRegionNotification, {
+		fileUri: textDocument.uri,
+		range: preProcessResult.disabledArea
+	});
 	// In this simple example we get the settings for every validate run.
 	const settings = await getDocumentSettings(textDocument.uri);
 

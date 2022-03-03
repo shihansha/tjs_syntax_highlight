@@ -128,6 +128,7 @@ export class MacroParser {
             else {
                 const tok = this.m_lex.nextToken(this.m_mode);
                 this.m_diagnostic = IDiagnostic.create(tok.range, "')' expected");
+                // console.log(new Error().stack);
             }
             this.m_lex.skipUntil(this.m_mode, [TokenType.SEP_RPAREN]);
             if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
@@ -158,21 +159,20 @@ export class MacroParser {
         }
     }
     private parseExp1(): MacroExpr {
-        const par0t = this.m_lex.lookAhead(this.m_mode);
-        if (par0t === TokenType.IDENTIFIER) {
-            const par0 = this.parseIdentifier();
-            const op = this.m_lex.lookAhead(this.m_mode);
-            if (op === TokenType.OP_ASSIGN) {
-                this.m_lex.nextToken(this.m_mode);
-                const par1 = this.parseExp2();
+        const par0 = this.parseExp2();
+        const op = this.m_lex.lookAhead(this.m_mode);
+        if (op === TokenType.OP_ASSIGN) {
+            const opTok = this.m_lex.nextToken(this.m_mode);
+            const par1 = this.parseExp2();
+            if (par0 instanceof MacroVariableExpr) {
                 par0.assign(par1.eval());
-                return par0;
             }
             else {
-                return par0;
+                this.m_diagnostic = IDiagnostic.create(opTok.range, "the left hand parameter of operator '=' should be a l-value");
+                // console.log(new Error().stack);
+                throw new Error();
             }
         }
-        const par0 = this.parseExp2();
         return par0;
     }
     private parseExp2(): MacroExpr {
@@ -333,7 +333,7 @@ export class MacroParser {
                 if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
                     this.m_lex.nextToken(this.m_mode);
                 }
-                console.log(new Error().stack);
+                // console.log(new Error().stack);
                 throw e;
             }
             const op1 = this.m_lex.nextToken(this.m_mode);
@@ -343,7 +343,7 @@ export class MacroParser {
                 if (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_RPAREN) {
                     this.m_lex.nextToken(this.m_mode);
                 }
-                console.log(new Error().stack);
+                // console.log(new Error().stack);
                 throw new Error();
             }
             return par0;
@@ -363,7 +363,7 @@ export class MacroParser {
         }
         const par0v = this.m_lex.nextToken(this.m_mode);
         this.m_diagnostic = IDiagnostic.create(par0v.range, "number or identifier expected. " + (par0v.diagnostic ?? ""));
-        console.log(new Error().stack);
+        // console.log(new Error().stack);
         throw new Error();
 }
     private parseNumber(): MacroNumberExpr {

@@ -4,7 +4,7 @@
  * ------------------------------------------------------------------------------------------ */
 
 import * as path from 'path';
-import { workspace, ExtensionContext, window } from 'vscode';
+import { workspace, ExtensionContext, window, DecorationRangeBehavior, Range, Position, Disposable } from 'vscode';
 
 import {
 	LanguageClient,
@@ -12,8 +12,15 @@ import {
 	ServerOptions,
 	TransportKind
 } from 'vscode-languageclient/node';
+import { KrkrNotificationType } from './notificationTypes/notificationType';
 
 let client: LanguageClient;
+const inactiveRegionsDecorations = new Map<string, Range[]>();
+const inactiveRegionsDecorationType = window.createTextEditorDecorationType({
+	opacity: 0.55.toString(), // cpp extension default opacity
+	rangeBehavior: DecorationRangeBehavior.ClosedOpen
+});
+const disposables: Disposable[] = [];
 
 export function activate(context: ExtensionContext) {
 	// The server is implemented in node
@@ -42,7 +49,8 @@ export function activate(context: ExtensionContext) {
 		synchronize: {
 			// Notify the server about file changes to '.clientrc files contained in the workspace
 			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
-		}
+		},
+		
 	};
 
 	// Create the language client and start the client.
@@ -53,13 +61,40 @@ export function activate(context: ExtensionContext) {
 		clientOptions
 	);
 
-	// Start the client. This will also launch the server
 	client.start();
+
+	client.onReady().then(
+		() => {
+			client.onNotification(KrkrNotificationType.InactiveRegionNotification, (params) => {
+
+				// let debugMsg = {
+				// 	editors: [] as string[],
+				// 	params: params
+				// };
+				// window.visibleTextEditors.forEach(e => debugMsg.editors.push(e.document.uri.toString()));
+				// window.showInformationMessage(JSON.stringify(debugMsg));
+				const vscodeRange = params.range.map(r => new Range(new Position(r.start.line, r.start.character), new Position(r.end.line, r.end.character)));
+				inactiveRegionsDecorations.set(params.fileUri, vscodeRange);
+				window.visibleTextEditors.filter(e => e.document.uri.toString() === params.fileUri).forEach(e => {
+					e.setDecorations(inactiveRegionsDecorationType, vscodeRange);
+				})
+			});
+		}
+	);
+
+	disposables.push(window.onDidChangeActiveTextEditor(e => {
+		const valuePair = inactiveRegionsDecorations.get(e.document.uri.toString());
+		if (valuePair) {
+			e.setDecorations(inactiveRegionsDecorationType, valuePair);
+		}
+	}));
 }
+
 
 export function deactivate(): Thenable<void> | undefined {
 	if (!client) {
 		return undefined;
 	}
+	disposables.forEach(d => d.dispose());
 	return client.stop();
 }

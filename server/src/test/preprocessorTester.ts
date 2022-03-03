@@ -28,6 +28,8 @@ const pre = new Preprocessor(file, content, {});
 const res = pre.run();
 console.log("defines: ");
 console.log(JSON.stringify(res.defines));
+console.log("inactiveRegions: ");
+console.log(JSON.stringify(res.disabledArea));
 
 writeFileSync(join(outputFolder, file), res.chunk, "utf8");
 
