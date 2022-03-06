@@ -53,6 +53,10 @@ export class Type {
         return false;
     }
 
+    public toString(): string {
+        return this.name;
+    }
+
     public static basic: BasicTypeEntries;
 }
 
@@ -75,10 +79,12 @@ function createBasicType() {
 }
 
 const basicType = createBasicType();
+Type.basic = basicType;
 
 export enum FunctionParameterProperty {
     Normal,
     Params,
+    Omittable,
 }
 
 export interface FunctionParameterEntry {
@@ -100,6 +106,18 @@ export class Function extends Type {
     public readonly params: FunctionParameterEntry[] = [];
     public appendParam(name: string, type: Type, paramProperty?: FunctionParameterProperty) {
         this.params.push({ name, type, paramProperty: paramProperty ?? FunctionParameterProperty.Normal });
+    }
+
+    public toString(): string {
+        let sb = "";
+        sb += "(";
+        sb += this.params.map(p => {
+            return p.name + ": " + p.type
+        }).join(", ");
+        sb += ")";
+        sb += " => ";
+        sb += this.returnType.toString();
+        return sb;
     }
 }
 
@@ -124,21 +142,63 @@ export class Property extends Type {
 
     public setter?: Function;
     public getter?: Function;
+
+    public toString(): string {
+        let sb = "property: ";
+        sb += this.typeShownUp().toString();
+        sb += " { ";
+        if (this.getter) {
+            sb += "getter; ";
+        }
+        if (this.setter) {
+            sb += "setter: ";
+        }
+        sb += "}";
+        return sb;
+    }
 }
 
+// TODO: move to somewhere where all internal types has been all defined
 function fullfillBasicType() {
     const basicString = basicType.string;
-    // append string.length
+    // append string.length (property: integer { getter; })
     const propStringLength = new Property();
     const propStringLengthGetter = new Function();
     propStringLengthGetter.returnType = basicType.integer;
     propStringLength.getter = propStringLengthGetter;
     basicString.fields["length"] = propStringLength;
-
-    // append string.[]
+    // append string.[] ((@indexer: integer) => string)
     const funcStringIndexer = new Function();
     funcStringIndexer.appendParam("@0", basicType.integer);
+    funcStringIndexer.returnType = basicType.string;
     basicString.fields["@indexer"] = funcStringIndexer;
+    // append string.charAt ((index: number) => string)
+    const funcStringCharAt = new Function();
+    funcStringCharAt.appendParam("index", basicType.integer);
+    funcStringCharAt.returnType = basicType.string;
+    basicString.fields["charAt"] = funcStringCharAt;
+    // append string.toLowerCase (() => string)
+    const funcStringToLowerCase = new Function();
+    funcStringToLowerCase.returnType = basicType.string;
+    basicString.fields["toLowerCase"] = funcStringToLowerCase;
+    // append string.toUpperCase (() => string)
+    const funcStringToUpperCase = new Function();
+    funcStringToUpperCase.returnType = basicType.string;
+    basicString.fields["toUpperCase"] = funcStringToUpperCase;
+    // append string.substring (() => string)
+    const funcStringSubString = new Function();
+    funcStringSubString.appendParam("start", basicType.integer);
+    funcStringSubString.appendParam("length", basicType.integer, FunctionParameterProperty.Omittable);
+    funcStringSubString.returnType = basicType.string;
+    basicString.fields["substring"] = funcStringSubString;
+    // append string.substr = string.substring
+    basicString.fields["substr"] = funcStringSubString;
+    // append string.sprintf ((original: string, params*: object[]) => string)
+    const funcStringSprintf = new Function();
+    funcStringSprintf.appendParam("original", basicType.string);
+    funcStringSprintf.appendParam("params*", basicType.object, FunctionParameterProperty.Params);
+    funcStringSprintf.returnType = basicType.string;
+    basicString.fields["sprintf"] = funcStringSprintf;
 
     const basicOctet = basicType.octet;
     // append octet.length
@@ -147,8 +207,12 @@ function fullfillBasicType() {
     propOctetLengthGetter.returnType = basicType.integer;
     propOctetLength.getter = propOctetLengthGetter;
     basicOctet.fields["length"] = propOctetLength;
+    // append octet.[]
+    const funcOctetIndexer = new Function();
+    funcOctetIndexer.appendParam("@0", basicType.integer);
+    funcOctetIndexer.returnType = basicType.integer;
+    basicOctet.fields["@indexer"] = funcOctetIndexer;
+    
 }
 
 fullfillBasicType();
-
-Type.basic = basicType;
