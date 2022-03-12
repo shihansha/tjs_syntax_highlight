@@ -1,3 +1,5 @@
+import { Token } from "./token";
+
 export enum TokenType {
     // special
     UNEXPECTED = "$UNEXPECTED",
@@ -98,6 +100,7 @@ export enum TokenType {
 
     // keywords
     KW_BREAK = "break",
+    KW_CONTINUE = "continue",
     KW_DO = "do",
     KW_CASE = "case",
     KW_CLASS = "class",
@@ -114,6 +117,8 @@ export enum TokenType {
     KW_TRUE = "true",
     KW_WHILE = "while",
     KW_WITH = "with",
+    KW_DEFAULT = "default",
+    KW_VAR = "var",
     IDENTIFIER = "$IDENTIFIER",
     NUMBER_DECIMAL = "$NUMBER_DECIMAL",
     NUMBER_BINARY = "$NUMBER_BINARY",
@@ -126,6 +131,7 @@ export enum TokenType {
 
 export const KEYWORDS: {[key: string]: TokenType | undefined} = {
     "break": TokenType.KW_BREAK,
+    "continue": TokenType.KW_CONTINUE,
     "do": TokenType.KW_DO,
     "case": TokenType.KW_CASE,
     "class": TokenType.KW_CLASS,
@@ -141,5 +147,7 @@ export const KEYWORDS: {[key: string]: TokenType | undefined} = {
     "switch": TokenType.KW_SWITCH,
     "true": TokenType.KW_TRUE,
     "while": TokenType.KW_WHILE,
-    "with": TokenType.KW_WITH
+    "with": TokenType.KW_WITH,
+    "default": TokenType.KW_DEFAULT,
+    "var": TokenType.KW_VAR
 };

@@ -6,6 +6,8 @@ export enum Opcode
     CHUNK,
     /** ; */
     STATEMENT,
+    /** , */
+    COMMA,
     /** for */
     FOR,
     /** do */
@@ -26,5 +28,98 @@ export enum Opcode
     SUB,
     /** 前置- */
     PRE_SUB,
-    
+    /** % */
+    MOD,
+    /** / */
+    DIV,
+    /** \ */
+    INTDIV,
+    MUL,
+    /** && */
+    AND,
+    /** || */
+    OR,
+    BITAND,
+    BITOR,
+    /** ~ */
+    BITNOT,
+    LEFTSHIFT,
+    RIGHTSHIFT,
+    EQUAL,
+    STRICTEQUAL,
+    NOTEQUAL,
+    NOTSTRICTEQUAL,
+    LARGER,
+    LARGEREQUAL,
+    SMALLER,
+    SMALLEREQUAL,
+    /** ^ */
+    BITXOR,
+    /** = */
+    SET,
+    /** &= */
+    SETBITAND,
+    /** |= */
+    SETBITOR,
+    /** ^= */
+    SETBITXOR,
+    SETSUB,
+    SETADD,
+    SETMOD,
+    SETDIV,
+    SETINTDIV,
+    SETMUL,
+    /** &&= */
+    SETAND, 
+    /** ||= */
+    SETOR,
+    SETLEFTSHIFT,
+    SETRIGHTSHIFT,
+    /** ?: */
+    QUESTION,
+    NOT,
+    /** -- */
+    DEC,
+    /** ++ */
+    INC,
+    NEW,
+    INSTANCEOF,
+    TYPEOF,
+    DELETE,
+    /** # */
+    CHAR,
+    /** $ */
+    DOLLAR,
+    /** () */
+    PARENTHESES,
+    /** [] */
+    BRACKET,
+    /** %[] */
+    DIC,
+    DOT,
+    INT,
+    REAL,
+    STRING,
+    SWITCH,
+    CASE,
+    DEFAULT,
+    CLASS,
+    FUNCTION,
+    RETURN,
+    BREAK,
+    CONTINUE,
+    /** => */
+    VALUE,
+    VAR,
+
+    CONST,
+    LITERAL,
+
+    TRUE,
+    FALSE,
+    GLOBAL,
+    THIS,
+    SUPER,
+
+    END
 }

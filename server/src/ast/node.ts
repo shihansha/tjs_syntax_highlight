@@ -10,14 +10,18 @@ export enum Accessablity {
 
 export class Node {
     accessability: Accessablity;
-    tokens: Token[];
+    token: Token | null;
+    children: Node[];
+    parent: Node | null;
     op : Opcode;
     analysisType: Analysis.IAnalysisType;
     range: IRange;
 
     public constructor(op: Opcode) {
         this.accessability = Accessablity.RValue;
-        this.tokens = [];
+        this.token = null;
+        this.children = [];
+        this.parent = null;
         this.op = op;
         this.analysisType = new Analysis.UnknownAnalysisType();
         this.range = { 
@@ -34,11 +38,17 @@ export class Node {
 
     public calcRange()
     {
-        if(this.tokens.length > 0)
+        if(this.children.length > 0)
         {
-            this.range.start = this.tokens[0].range.start;
-            this.range.end = this.tokens[this.tokens.length - 1].range.end;
+            this.range.start = this.children[0].range.start;
+            this.range.end = this.children[this.children.length - 1].range.end;
         }
+    }
+
+    public AddParent(p: Node): Node{
+        p.children.push(this);
+        this.parent = p;
+        return p;
     }
 }
 
@@ -54,6 +64,12 @@ export class ChunkNode extends Node {
 export class StatNode extends Node {
     public constructor() {
         super(Opcode.STATEMENT);
+    }
+}
+
+export class ConstantNode extends Node{
+    public constructor(){
+        super(Opcode.CONST);
     }
 }
 
