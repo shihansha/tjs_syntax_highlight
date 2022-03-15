@@ -2,6 +2,7 @@ import { LexerMode } from "../types/lexerMode";
 import { Token } from "../types/token";
 import { TokenType } from "../types/tokenType";
 import { IPosition } from "./IPosition";
+import { IRange } from "./IRange";
 
 export interface ILexer {
     /**
@@ -18,6 +19,13 @@ export interface ILexer {
      * 文本中尚未解析部分的起始位置。
      */
     get currentPosition(): IPosition;
+
+    /**
+     * 向前看一个字符位置，但不消耗该字符。
+     * @param mode 解析器工作模式。
+     * @returns 向前看的字符位置。
+     */
+    lookAheadRange(mode: LexerMode): IRange;
 
     /**
      * 向前看一个字符的类型，但不消耗该字符。

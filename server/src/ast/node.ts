@@ -133,6 +133,23 @@ export class WithNode extends Stat<NodeType.WITH> {
     public stat?: Stat<NodeType>;
 }
 
+export class SwitchNode extends Stat<NodeType.SWITCH> {
+    constructor() {
+        super(NodeType.SWITCH);
+    }
+
+    public expr?: Expr<NodeType>;
+    public readonly cases: CaseNode[] = [];
+}
+
+export class CaseNode extends Stat<NodeType.CASE> {
+    constructor() {
+        super(NodeType.CASE);
+    }
+    public pred?: Expr<NodeType>;
+    public readonly stats: Stat[] = [];
+}
+
 export class ConstantNode extends Expr<NodeType.CONST>{
     public constructor(){
         super(NodeType.CONST);

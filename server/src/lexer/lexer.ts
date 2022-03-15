@@ -58,6 +58,11 @@ export class Lexer implements ILexer {
         }
     }
 
+    public lookAheadRange(mode: LexerMode): IRange {
+        this.lookAhead(mode);
+        return this.m_lookAheadBuf!.prefetchedToken.range;
+    }
+
     public lookAhead(mode: LexerMode): TokenType {
         if (this.m_lookAheadBuf) {
             if (this.m_lookAheadBuf.mode === mode) {
