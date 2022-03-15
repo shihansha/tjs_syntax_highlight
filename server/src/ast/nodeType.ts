@@ -1,4 +1,4 @@
-export enum Opcode
+export enum NodeType
 {
     /** the operator used by global chunk only */
     CHUNK_WITHOUT_CLOSURE,
