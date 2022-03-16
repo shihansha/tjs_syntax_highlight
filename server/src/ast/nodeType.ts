@@ -20,6 +20,7 @@ export enum NodeType
     POST_IF,
     /** with */
     WITH,
+    TRY,
     /** + */
     ADD,
     /** 前置+ */
@@ -114,6 +115,7 @@ export enum NodeType
 
     CONST,
     LITERAL,
+    IDENTIFIER,
 
     TRUE,
     FALSE,

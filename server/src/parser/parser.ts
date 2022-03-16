@@ -28,6 +28,11 @@ const SKIP_UNTIL_GROUP = {
      * 在 for 循环的三个条件表达式中。
      */
     FOR_EXPR: [TokenType.SEP_SEMI, TokenType.SEP_LCURLY, TokenType.SEP_RCURLY, TokenType.SEP_RPAREN],
+
+    /**
+     * 当 case 语句的 pred exp 中出错时。
+     */
+    CASE_PRED: [TokenType.SEP_SEMI, TokenType.SEP_LCURLY, TokenType.SEP_RCURLY, TokenType.SEP_COLON],
 } as const;
 
 export class Parser {
@@ -229,6 +234,11 @@ export class Parser {
     private parseExpression(): Node.Expr {
         throw new Error("Method not implemented.");
     }
+
+    private parseIdentifier(): Node.IdentifierNode {
+        throw new Error("Method not implemented.");
+    }
+
     
     /**
      * 转换一个 stat。我们保证无论是否转换成功，上一个 stat 已经匹配到了自己的句尾。
@@ -449,12 +459,56 @@ export class Parser {
 
         while (true) {
             const ahead = this.lookAhead();
+            let defaultTrigged = false;
             if (ahead === TokenType.KW_CASE) {
-                // const caseNode = new Node.CaseNode();
-                
+                if (defaultTrigged) {
+                    this.errorStack.push(IDiagnostic.create(this.posAhead(), "cannot define cases after default tag"));
+                }
+                const caseNode = new Node.CaseNode();
+                this.next();
+                const pred = this.parseExpression();
+                if (!pred.completed) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.CASE_PRED);
+                    this.skipIf([TokenType.SEP_COLON]);
+                }
+                caseNode.pred = pred;
+
+                if (!this.assertAndTake(TokenType.SEP_COLON)) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.CASE_PRED);
+                    this.skipIf([TokenType.SEP_COLON]);
+                }
+                while (true) {
+                    const ahead = this.lookAhead();
+                    if (ahead === TokenType.KW_CASE || ahead === TokenType.KW_DEFAULT || ahead === TokenType.SEP_RCURLY) {
+                        break;
+                    }
+                    const caseStat = this.parseStatement();
+                    caseNode.stats.push(caseStat);
+                }
+
+                stat.cases.push(caseNode);
             }
             else if (ahead === TokenType.KW_DEFAULT) {
+                if (defaultTrigged) {
+                    this.errorStack.push(IDiagnostic.create(this.posAhead(), "cannot redefine default tag"));
+                }
+                const defaultNode = new Node.CaseNode();
+                this.next();
+                if (!this.assertAndTake(TokenType.SEP_COLON)) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.CASE_PRED);
+                    this.skipIf([TokenType.SEP_COLON]);
+                }
+                while (true) {
+                    const ahead = this.lookAhead();
+                    if (ahead === TokenType.KW_CASE || ahead === TokenType.KW_DEFAULT || ahead === TokenType.SEP_RCURLY) {
+                        break;
+                    }
+                    const caseStat = this.parseStatement();
+                    defaultNode.stats.push(caseStat);
+                }
 
+                stat.cases.push(defaultNode);
+                defaultTrigged = true;
             }
             else if (ahead === TokenType.SEP_RCURLY) {
                 break;
@@ -467,11 +521,47 @@ export class Parser {
                 this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             }
         }
-        throw new Error("Method not implemented.");
+        
+        stat.completed = true;
+        return stat;
     }
 
     private statTry(): Node.Stat {
-        throw new Error("Method not implemented.");
+        const stat = new Node.TryNode();
+        this.next();
+        const lcurlyExpected = this.lookAhead();
+        if (lcurlyExpected !== TokenType.SEP_LCURLY) {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "'{' expected"));
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
+        const tryBlock = this.statBlock();
+        stat.tryBlock = tryBlock;
+        if (!this.assertAndTake(TokenType.KW_CATCH)) {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "'catch' expected"));
+            return stat;
+        }
+        
+        const optionalLparen = this.lookAhead();
+        if (optionalLparen === TokenType.SEP_LPAREN) {
+            this.next();
+            const optionalIdentifier = this.parseIdentifier();
+            if (!optionalIdentifier.completed) {
+                this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+            }
+            stat.catchParam = optionalIdentifier;
+            if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
+                this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+                if (!this.skipIf([TokenType.SEP_RPAREN])) {
+                    return stat;
+                }
+            }
+        }
+
+        const catchBlock = this.statBlock();
+        stat.catchBlock = catchBlock;
+        stat.completed = true;
+        return stat;
     }
     private statFunction(): Node.Stat {
         throw new Error("Method not implemented.");

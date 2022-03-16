@@ -148,12 +148,39 @@ export class CaseNode extends Stat<NodeType.CASE> {
     }
     public pred?: Expr<NodeType>;
     public readonly stats: Stat[] = [];
+    public isDefaultBranch() {
+        return this.pred === undefined;
+    }
+}
+
+export class TryNode extends Stat<NodeType.TRY> {
+    constructor() {
+        super(NodeType.TRY);
+    }
+    public tryBlock?: Stat<NodeType.CHUNK>;
+    public catchParam?: Expr<NodeType.IDENTIFIER>;
+    public catchBlock?: Stat<NodeType.CHUNK>;
+}
+
+export class FunctionNode extends Stat<NodeType.FUNCTION> {
+    constructor() {
+        super(NodeType.FUNCTION);
+    }
+    public paramList: IdentifierNode[] = [];
+    public stat?: Stat<NodeType.CHUNK>;
 }
 
 export class ConstantNode extends Expr<NodeType.CONST>{
     public constructor(){
         super(NodeType.CONST);
     }
+}
+
+export class IdentifierNode extends Expr<NodeType.IDENTIFIER> {
+    constructor() {
+        super(NodeType.IDENTIFIER);
+    }
+    public value?: string;
 }
 
 export class AddNode extends Expr<NodeType.ADD> {
