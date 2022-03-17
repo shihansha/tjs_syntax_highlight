@@ -7,6 +7,7 @@ import { LexerMode } from "../types/lexerMode";
 import { IDiagnostic } from "../interfaces/IDiagnostic"
 import { IRange } from "../interfaces/IRange";
 import { IPosition } from "../interfaces/IPosition";
+import { BasicTypes } from "../typeSystem/type";
 
 const TJS_MODE = LexerMode.TJS;
 
@@ -33,6 +34,11 @@ const SKIP_UNTIL_GROUP = {
      * 当 case 语句的 pred exp 中出错时。
      */
     CASE_PRED: [TokenType.SEP_SEMI, TokenType.SEP_LCURLY, TokenType.SEP_RCURLY, TokenType.SEP_COLON],
+
+    /**
+     * 在函数参数定义中时。
+     */
+    PARAM_LIST: [TokenType.SEP_SEMI, TokenType.SEP_LCURLY, TokenType.SEP_RCURLY, TokenType.SEP_RPAREN, TokenType.SEP_COMMA],
 } as const;
 
 export class Parser {
@@ -199,8 +205,11 @@ export class Parser {
             case TokenType.NUMBER_DECIMAL:
             case TokenType.NUMBER_HEXIMAL:
             case TokenType.NUMBER_OCTAL:
+                node = this.handleNumber(token);
+                node.token = token;
+                break;
             case TokenType.STRING:
-                node = new Node.ConstantNode();
+                node = new Node.ConstantNode(token.value, BasicTypes.String);
                 node.token = token;
                 break;
         }
@@ -213,6 +222,79 @@ export class Parser {
                 case TokenType.OP_ADD:
                     node = node?.addParent(new Node.AddNode());
             }
+        }
+    }
+    private handleNumber(token: Token) {
+        const origin = token.value.toLowerCase();
+        let outNum: number;
+        if (token.type === TokenType.NUMBER_BINARY) {
+            const trimmed = origin.substring(2);
+            outNum = handleNotDecimalTrimmedNumber(trimmed, 2);
+        }
+        else if (token.type === TokenType.NUMBER_OCTAL) {
+            const trimmed = origin.substring(1);
+            outNum = handleNotDecimalTrimmedNumber(trimmed, 8);
+        }
+        else if (token.type === TokenType.NUMBER_DECIMAL) {
+            let numStr: string;
+            let expStr: string | undefined;
+            if (origin.includes("e")) {
+                const spl = origin.split("e");
+                numStr = spl[0];
+                expStr = spl[1];
+            }
+            else {
+                numStr = origin;
+                expStr = undefined;
+            }
+
+            const num = parseFloat(numStr);
+            const exp = expStr ? parseInt(expStr) : 0;
+            outNum = num * (10 ** exp);
+        }
+        else if (token.type === TokenType.NUMBER_HEXIMAL) {
+            const trimmed = origin.substring(2);
+            outNum = handleNotDecimalTrimmedNumber(trimmed, 16);
+        }
+        else {
+            throw new Error("unepected token number");
+        }
+
+        if (Math.floor(outNum) !== outNum) {
+            return new Node.ConstantNode(outNum, BasicTypes.Real);
+        }
+        else {
+            return new Node.ConstantNode(outNum, BasicTypes.Integer);
+        }
+
+        function handleNotDecimalTrimmedNumber(trimmed: string, radix: number) {
+            let numStr: string;
+            let expStr: string | undefined;
+
+            if (trimmed.includes("p")) {
+                const spl = trimmed.split("p");
+                numStr = spl[0];
+                expStr = spl[1];
+            }
+            else {
+                numStr = trimmed;
+                expStr = undefined;
+            }
+
+            let num: number;
+            if (numStr.includes(".")) {
+                const numSpl = trimmed.split(".");
+                const intStr = numSpl[0];
+                const floatStr = numSpl[1];
+                const intNum = intStr === "" ? 0 : parseInt(intStr, radix);
+                const floatNum = floatStr === "" ? 0 : parseInt(floatStr, radix) / (radix ** floatStr.length);
+                num = intNum + floatNum;
+            }
+            else {
+                num = parseInt(numStr, radix);
+            }
+            const exp = expStr ? parseInt(expStr, 10) : 0;
+            return num * (2 ** exp);
         }
     }
 
@@ -564,9 +646,155 @@ export class Parser {
         return stat;
     }
     private statFunction(): Node.Stat {
-        throw new Error("Method not implemented.");
+        const func = new Node.FunctionNode();
+        this.next();
+        const funcName = this.parseIdentifier();
+        if (!funcName.completed) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return func;
+        }
+        
+        const lparenExpected = this.lookAhead();
+        if (lparenExpected === TokenType.SEP_LPAREN) {
+            this.next();
+            if (this.lookAhead() === TokenType.SEP_RPAREN) {
+                this.next();
+            }
+            else {
+                // parse parameter list
+                let varargSaw = false;
+                let varargShouldBeLastParamErrorEmitted = false;
+                while (true) {
+                    if (varargSaw && !varargShouldBeLastParamErrorEmitted) {
+                        varargShouldBeLastParamErrorEmitted = true;
+                        this.errorStack.push(IDiagnostic.create(this.posAhead(), "args parameter should be the last parameter"));
+                    }
+                    const parNameExpected = this.lookAhead();
+                    const parNode = new Node.FunctionParameterNode();
+                    if (parNameExpected === TokenType.IDENTIFIER) {
+                        const id = this.parseIdentifier();
+                        if (!id.completed) {
+                            this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
+                            if (this.lookAhead() !== TokenType.SEP_COMMA || this.lookAhead() !== TokenType.SEP_RPAREN) {
+                                return func;
+                            }
+                            this.skipIf([TokenType.SEP_COMMA]);
+                            continue;
+                        }
+                        parNode.nameExpr = id;
+
+                        if (this.lookAhead() === TokenType.VARARG) {
+                            varargSaw = true;
+                            this.next();
+                            parNode.parType = Node.FunctionParameterNode.FunctionParameterType.Args;
+                            func.paramList.push(parNode);
+                            if (this.lookAhead() === TokenType.OP_ASSIGN) {
+                                this.errorStack.push(IDiagnostic.create(this.posAhead(), "args parameter should not have an initializer"));
+                            }
+                        }
+                    }
+                    else if (parNameExpected === TokenType.VARARG) {
+                        varargSaw = true;
+                        this.next();
+                        parNode.parType = Node.FunctionParameterNode.FunctionParameterType.UnnamedArgs;
+                        func.paramList.push(parNode);
+                        if (this.lookAhead() === TokenType.OP_ASSIGN) {
+                            this.errorStack.push(IDiagnostic.create(this.posAhead(), "args parameter should not have an initializer"));
+                        }
+                    }
+                    else {
+                        // emit an error
+                        this.skipUntil([TokenType.IDENTIFIER, TokenType.VARARG]);
+                        this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
+                        const commaExpected = this.lookAhead();
+                        if (commaExpected !== TokenType.SEP_COMMA) {
+                            this.skipIf([TokenType.SEP_RPAREN]);
+                            return func;
+                        }
+                    }
+
+                    const maybeAssign = this.lookAhead();
+                    if (maybeAssign === TokenType.OP_ASSIGN) {
+                        if (parNode.parType !== undefined) {
+                            parNode.parType = Node.FunctionParameterNode.FunctionParameterType.WithInitializer;
+                        }
+                        this.next();
+                        const init = this.parseExpression();
+                        parNode.initExpr = init;
+                        if (!init.completed) {
+                            this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
+                            if (this.lookAhead() !== TokenType.SEP_COMMA) {
+                                this.skipIf([TokenType.SEP_RPAREN]);
+                                return func;
+                            }
+                        }
+                    }
+                    
+                    const commaOrRparen = this.lookAhead();
+                    if (commaOrRparen === TokenType.SEP_COMMA) {
+                        this.next();
+                    }
+                    else if (commaOrRparen === TokenType.SEP_RPAREN) {
+                        break;
+                    }
+                    else {
+                        this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
+                        if (this.lookAhead() !== TokenType.SEP_COMMA) {
+                            this.skipIf([TokenType.SEP_RPAREN]);
+                            return func;
+                        }
+                    }
+                }
+
+                const rparenExpected = this.lookAhead();
+                if (rparenExpected !== TokenType.SEP_RPAREN) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+                    if (!this.skipIf([TokenType.SEP_RPAREN])) {
+                        return func;
+                    }
+                }
+                this.next();
+            }
+        }
+        
+        const body = this.statBlock();
+        func.stat = body;
+        func.completed = true;
+        return func;
+
     }
     private statProperty(): Node.Stat {
+        const stat = new Node.PropertyNode();
+        this.next();
+        if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
+        this.next();
+
+        while (true) {
+            const setterOrGetter = this.lookAhead();
+            if (setterOrGetter === TokenType.KW_SETTER) {
+                this.next();
+                if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
+                    return stat;
+                }
+                const id = this.parseIdentifier();
+                if (!id.completed) {
+
+                }
+            }
+            else if (setterOrGetter === TokenType.KW_GETTER) {
+
+            }
+            else {
+                this.errorStack.push(IDiagnostic.create(this.posAhead(), "keyword 'getter' or 'setter' expected"));
+                this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+                return stat;
+            }
+        }
+
         throw new Error("Method not implemented.");
     }
     private statClass(): Node.Stat {

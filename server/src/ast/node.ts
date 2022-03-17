@@ -1,6 +1,7 @@
 import { IRange } from "../interfaces/IRange";
 import { Token } from "../types/token";
 import * as Analysis from "../typeSystem/analysisType";
+import { BasicTypes, Type } from "../typeSystem/type";
 import { NodeType } from "./nodeType";
 
 export enum Accessablity {
@@ -166,14 +167,48 @@ export class FunctionNode extends Stat<NodeType.FUNCTION> {
     constructor() {
         super(NodeType.FUNCTION);
     }
-    public paramList: IdentifierNode[] = [];
+    public paramList: FunctionParameterNode[] = [];
     public stat?: Stat<NodeType.CHUNK>;
 }
 
-export class ConstantNode extends Expr<NodeType.CONST>{
-    public constructor(){
-        super(NodeType.CONST);
+export class PropertyNode extends Stat<NodeType.PROPERTY> {
+    constructor() {
+        super(NodeType.PROPERTY);
     }
+    public getterBlock?: Stat<NodeType.CHUNK>;
+    public setterBlock?: Stat<NodeType.CHUNK>;
+    public setterArg?: Expr<NodeType.IDENTIFIER>;
+}
+
+enum FunctionParameterType {
+    Normal,
+    WithInitializer,
+    Args,
+    UnnamedArgs
+}
+
+export class FunctionParameterNode extends Expr<NodeType.FUNCTION_PARAMETER> {
+    static readonly FunctionParameterType = FunctionParameterType;
+    constructor() {
+        super(NodeType.FUNCTION_PARAMETER);
+    }
+    parType?: FunctionParameterType;
+    nameExpr?: IdentifierNode;
+    initExpr?: Expr;
+}
+
+export class ConstantNode extends Expr<NodeType.CONST>{
+    public constructor(value: any, type: BasicTypes) {
+        super(NodeType.CONST);
+        let t = Type.basic[BasicTypes[type].toLowerCase() as Lowercase<keyof typeof BasicTypes>];
+        this.analysisType = new Analysis.LiteralAnalysisType(value, t);
+    }
+
+    static readonly consts = {
+        void: new ConstantNode(undefined, BasicTypes.void),
+        true: new ConstantNode(1, BasicTypes.Integer),
+        false: new ConstantNode(0, BasicTypes.Integer)
+    } as const;
 }
 
 export class IdentifierNode extends Expr<NodeType.IDENTIFIER> {

@@ -106,6 +106,8 @@ export enum NodeType
     DEFAULT,
     CLASS,
     FUNCTION,
+    FUNCTION_PARAMETER,
+    PROPERTY,
     RETURN,
     BREAK,
     CONTINUE,
