@@ -11,12 +11,12 @@ export enum Accessablity {
 
 export class Node<T extends NodeType = NodeType> {
     accessability: Accessablity;
-    token: Token | null;
-    children: Node<NodeType>[];
-    parent: Node<NodeType> | null;
+    token?: Token;
+    children: (Node<NodeType> | undefined)[];
+    parent?: Node<NodeType>;
     op : T;
-    analysisType: Analysis.IAnalysisType | null;
-    range: IRange;
+    analysisType?: Analysis.IAnalysisType;
+    range?: IRange;
     /**
      * 指示该节点是否已完整。(这与在翻译中是否出现了错误无关，如果 parser 从错误中成功恢复，节点也可能是完整的)
      */
@@ -24,21 +24,8 @@ export class Node<T extends NodeType = NodeType> {
 
     public constructor(op: T) {
         this.accessability = Accessablity.RValue;
-        this.token = null;
         this.children = [];
-        this.parent = null;
         this.op = op;
-        this.analysisType = null;
-        this.range = { 
-            start: { 
-                line: 0, 
-                character: 0 
-            }, 
-            end: { 
-                line: 0, 
-                character: 0 
-            } 
-        };
         this.completed = false;
     }
 
@@ -46,8 +33,15 @@ export class Node<T extends NodeType = NodeType> {
     {
         if(this.children.length > 0)
         {
-            this.range.start = this.children[0].range.start;
-            this.range.end = this.children[this.children.length - 1].range.end;
+            var first = this.children[0]?.range;
+            var last = this.children[this.children.length - 1]?.range;
+            if(first && last)
+            {
+                this.range = { 
+                    start: first.start, 
+                    end: last.end
+                };
+            }
         }
     }
 
@@ -59,10 +53,9 @@ export class Node<T extends NodeType = NodeType> {
 }
 
 export class Stat<T extends NodeType = NodeType> extends Node<T> {
-    override analysisType: null;
+    override analysisType: undefined;
     constructor(type: T) {
         super(type);
-        this.analysisType = null;
     }
 }
 
@@ -151,7 +144,7 @@ export class CaseNode extends Stat<NodeType.CASE> {
         super(NodeType.CASE);
     }
     public pred?: Expr;
-    public readonly stats: Stat[] = [];
+    public readonly stats: (Stat | undefined)[] = [];
     public isDefaultBranch() {
         return this.pred === undefined;
     }
@@ -170,6 +163,7 @@ export class FunctionNode extends Stat<NodeType.FUNCTION> {
     constructor() {
         super(NodeType.FUNCTION);
     }
+    public name?: IdentifierNode;
     public paramList: FunctionParameterNode[] = [];
     public stat?: ChunkNode;
 }
@@ -178,7 +172,7 @@ export class PropertyNode extends Stat<NodeType.PROPERTY> {
     constructor() {
         super(NodeType.PROPERTY);
     }
-    
+    public name?: IdentifierNode;
     public getterAndSetter: (PropertyGetterNode | PropertySetterNode)[] = [];  
 }
 
@@ -221,7 +215,7 @@ export class ClassNode extends Stat<NodeType.CLASS> {
         super(NodeType.CLASS);
     }
     public name?: IdentifierNode;
-    public extendList: Expr[] = [];
+    public extendList: IdentifierNode[] = [];
     public properties: PropertyNode[] = [];
     public methods: FunctionNode[] = [];
     public fields: VarNode[] = []; 
@@ -259,20 +253,37 @@ export class ConstantNode extends Expr<NodeType.CONST>{
 }
 
 export class IdentifierNode extends Expr<NodeType.IDENTIFIER> {
-    constructor() {
+    constructor(t: Token) {
         super(NodeType.IDENTIFIER);
+        this.value = t.value;
+        this.range = t.range;
+        this.completed = true;
     }
     public value?: string;
 }
 
-export class AddNode extends Expr<NodeType.ADD> {
-    public constructor() {
-        super(NodeType.ADD);
+export class BinaryOperator<T extends NodeType = NodeType> extends Expr<T> {
+    public constructor(type: T) {
+        super(type);
     }
+
+    public a?: Expr;
+    public b?: Expr;
 }
 
-export class PreAddNode extends Expr<NodeType.PRE_ADD> {
-    public constructor() {
-        super(NodeType.PRE_ADD);
+export class TripleOperator<T extends NodeType = NodeType> extends Expr<T> {
+    public constructor(type: T) {
+        super(type);
     }
+
+    public a?: Expr;
+    public b?: Expr;
+    public c?: Expr;
+}
+
+export class UnaryOperator<T extends NodeType = NodeType> extends Expr<T> {
+    public constructor(type: T) {
+        super(type);
+    }
+    public a?: Expr;
 }

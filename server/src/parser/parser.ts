@@ -190,7 +190,7 @@ export class Parser {
         return true;
     }
 
-    private _parse(rbp : number, tree: Node.Node)
+    private _parse(rbp : number) : Node.Node | undefined
     {
         var token = this.next();
         var next = this.lookAhead();
@@ -203,7 +203,9 @@ export class Parser {
             this.skipToLineEnd();
             return;
         }
-        var node: Node.Node | undefined;
+        //占位初始化
+        var node: Node.Node = new Node.Node(NodeType.END);
+        // 这里是单目运算符及while等单目语句的处理
         switch(token.type)
         {
             case TokenType.NUMBER_BINARY:
@@ -217,7 +219,74 @@ export class Parser {
                 node = new Node.ConstantNode(token.value, BasicTypes.String);
                 node.token = token;
                 break;
+            case TokenType.SEP_LCURLY: // {
+                node = this.statBlock();
+                break;
+            case TokenType.KW_IF: // if
+                node = this.statIf();
+                break;
+            case TokenType.KW_WHILE: // while
+                node = this.statWhile();
+                break;
+            case TokenType.KW_DO: // do
+                node = this.statDo();
+                break;
+            case TokenType.KW_FOR: // for
+                node = this.statFor();
+                break;
+            case TokenType.KW_SWITCH:
+                node = this.statSwitch();
+                break;
+            case TokenType.KW_TRY:
+                node = this.statTry();
+                break;
+            case TokenType.KW_FUNCTION:
+                node = this.statFunction();
+                break;
+            case TokenType.KW_PROPERTY:
+                node = this.statProperty();
+                break;
+            case TokenType.KW_CLASS:
+                node = this.statClass();
+                break;
+            case TokenType.KW_WITH:
+                node = this.statWith();
+                break;
+            case TokenType.SEP_SEMI: // ;
+                // empty statement
+                // 吃掉;然后return一个空stat
+                if(rbp>0)
+                {
+                    //parse exp时不吃掉，并且返回undefined，作为一个特殊的Exp，
+                    //因为除了for的()外，其余地方都不能接受空exp
+                    return;
+                }
+                this.next();
+                let n = new Node.StatNode();
+                n.completed = true;
+                return n;
+            case TokenType.OP_ADD:
+                node = new Node.UnaryOperator(NodeType.PRE_ADD);
+                break;
+            case TokenType.OP_MINUS:
+                node = new Node.UnaryOperator(NodeType.PRE_SUB);
+                break;
+            case TokenType.OP_NOT:
+                node = new Node.UnaryOperator(NodeType.NOT);
+                break;
+            case TokenType.OP_BNOT:
+                node = new Node.UnaryOperator(NodeType.BITNOT);
+                break;
+            case TokenType.OP_INC:
+                node = new Node.UnaryOperator(NodeType.PRE_ADD);
+                break;
+            case TokenType.OP_DEC:
+                node = new Node.UnaryOperator(NodeType.PRE_SUB);
+                break;
+            // default:
+            //     return this.statExpr();
         }
+        // 这里是双目的处理
         while(rbp < this.LBP[next])
         {
             token = this.next();
@@ -225,9 +294,57 @@ export class Parser {
             switch(token.type)
             {
                 case TokenType.OP_ADD:
-                    node = node?.addParent(new Node.AddNode());
+                    node = node.addParent(new Node.BinaryOperator(NodeType.ADD));
+                    node.children.push(this._parse(this.LBP[token.type]));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_MINUS:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.SUB));
+                    node.children.push(this._parse(this.LBP[token.type]));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_MUL:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.MUL));
+                    node.children.push(this._parse(this.LBP[token.type]));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_DIV:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.DIV));
+                    node.children.push(this._parse(this.LBP[token.type]));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_IDIV:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.INTDIV));
+                    node.children.push(this._parse(this.LBP[token.type]));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_MOD:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.MOD));
+                    node.children.push(this._parse(this.LBP[token.type]));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_ASSIGN:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.SET));
+                    // 又结合
+                    node.children.push(this._parse(this.LBP[token.type] - 1));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_ASSIGN_ADD:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.SETADD));
+                    // 又结合
+                    node.children.push(this._parse(this.LBP[token.type] - 1));
+                    node.completed = !!node.children[1];
+                    break;
+                case TokenType.OP_ASSIGN_CHANGE:
+                    node = node.addParent(new Node.BinaryOperator(NodeType.CHANGE));
+                    // 又结合
+                    node.children.push(this._parse(this.LBP[token.type] - 1));
+                    node.completed = !!node.children[1];
+                    break;
+                // TODO
             }
         }
+        return node;
     }
     private handleNumber(token: Token) {
         const origin = token.value.toLowerCase();
@@ -303,17 +420,13 @@ export class Parser {
         }
     }
 
-    public parse() : Node.Node {
+    public parse() : Node.Stat<NodeType> {
         var pnode = new Node.ChunkNode(true);
-        pnode.children.push(new Node.StatNode());
-        this._parse(0, pnode.children[0]);
+        pnode.children.push(this.parseStatement());
         while(this.lookAhead() != TokenType.EOF)
         {
-            if(this.lookAhead() == TokenType.SEP_SEMI)
-                this.next();
-            var stat = new Node.StatNode();
-            this._parse(0, stat);
-            pnode.children.push(stat);
+            this.skipIf([TokenType.SEP_SEMI]);
+            pnode.children.push(this.parseStatement());
         }
         return pnode;
     }
@@ -324,12 +437,17 @@ export class Parser {
      * 转换一个 expr 时，我们约定，出错时不调用 `skip` 方法，而是将 `completed` 标记为 `false`，然后直接返回。
      * stat 的转换器负责从错误中恢复。
      */
-    private parseExpression(): Node.Expr {
-        throw new Error("Method not implemented.");
+    private parseExpression(): Node.Expr<NodeType> | undefined {
+        //介于;等结束符和,之间
+        return this._parse(5) as Node.Expr<NodeType>;
     }
 
-    private parseIdentifier(): Node.IdentifierNode {
-        throw new Error("Method not implemented.");
+    /** 只有成功和失败两种可能，失败返回undefined */
+    private parseIdentifier(): Node.IdentifierNode | undefined {
+        var n = this.lookAhead();
+        if(n!==TokenType.IDENTIFIER)
+            return;
+        return new Node.IdentifierNode(this.next());
     }
 
     
@@ -338,9 +456,15 @@ export class Parser {
      * 因此递归地调用 `parseStatement` 或者其附属方法在失败时不需要调用任何 skip 方法。
      * 
      * 而且由于我们保证了一个 stat 的完整性，因此 stat 的转换失败不会将错误传播到语句的外部。
+     * 
+     * 吃掉最后的;
      * @returns stat 的 node。
      */
-    private parseStatement(): Node.Stat {
+    private parseStatement(): Node.Stat<NodeType> | undefined {
+        var n = this._parse(0) as Node.Stat<NodeType>;
+        this.skipIf([TokenType.SEP_SEMI]);
+        return n;
+        /*
         const ahead = this.lookAhead();
         switch (ahead) {
             case TokenType.SEP_LCURLY: // {
@@ -371,11 +495,12 @@ export class Parser {
             default:
                 return this.statExpr();
         }
+        */
     }
     private statExpr(): Node.Stat {
         const stat = new Node.StatNode();
         const expr = this.parseExpression();
-        if (!expr.completed) {
+        if (!expr?.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             this.skipIf([TokenType.SEP_SEMI]);
             return stat;
@@ -389,76 +514,77 @@ export class Parser {
         stat.completed = true;
         return stat;
     }
+
     private statWhile(): Node.Stat {
         const stat = new Node.WhileNode();
-        this.next();
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
-            this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
+            // while连(都没找到的话应当直接跳过整段，直到;
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
         }
         const expr = this.parseExpression();
-        if (!expr.completed) {
-            this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
-            this.skipIf([TokenType.SEP_RPAREN]);
-            return stat;
-        }
         stat.pred = expr;
-        if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
+        // 解析失败或是没有以)结尾，如“while(1+2;”
+        if (!expr?.completed || !this.assertAndTake(TokenType.SEP_RPAREN)) {
             this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
             this.skipIf([TokenType.SEP_RPAREN]);
+            // 如果()之间parse出了问题，是否继续parse剩下的
             return stat;
         }
         const whileBody = this.parseStatement();
         stat.stat = whileBody;
-        stat.completed = true;
+        if(whileBody)
+            stat.completed = whileBody.completed;
+        //默认completed是false所以不需要else
         return stat;
     }
 
     private statDo(): Node.Stat {
         const stat = new Node.DoNode();
-        this.next();
         const doBody = this.parseStatement();
         stat.stat = doBody;
         if (!this.assertAndTake(TokenType.KW_WHILE)) {
             // 为了完整性，我们这里忽略不正确的 while 部分。
-            this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
-            return doBody;
+            // 还没读到while，要直接跳到;
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
         }
-
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
-            this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
-            return doBody;
+            // 仅在读到(之后skip到)，否则skip到;
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
         }
         const expr = this.parseExpression();
-        if (!expr.completed) {
-            this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
-            this.skipIf([TokenType.SEP_RPAREN]);
-            return doBody;
+        if (!expr?.completed) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            //this.skipIf([TokenType.SEP_RPAREN]);
+            return stat;
         }
         stat.pred = expr;
         if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
             this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
             this.skipIf([TokenType.SEP_RPAREN, TokenType.SEP_SEMI]);
-            return doBody;
+            return stat;
         }
         
         this.assertAndTake(TokenType.SEP_SEMI);
 
-        stat.completed = true;
+        if(expr)
+            stat.completed = expr.completed;
         return stat;
     }
+
     private statFor(): Node.Stat {
         const stat = new Node.ForNode();
-        let completeFlag = true;
-        this.next();
+        //let completeFlag = true;
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
-            this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
         }
         const init = this.parseExpression();
-        if (!init.completed) {
+        if (init && !init.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.FOR_EXPR);
-            completeFlag = false;
+            //completeFlag = false;
             if (this.lookAhead() !== TokenType.SEP_SEMI) {
                 this.skipIf([TokenType.SEP_RPAREN]);
                 return stat;
@@ -469,7 +595,7 @@ export class Parser {
         const initSemi = this.lookAhead();
         if (initSemi !== TokenType.SEP_SEMI) {
             this.skipUntil(SKIP_UNTIL_GROUP.FOR_EXPR);
-            completeFlag = false;
+            //completeFlag = false;
             if (this.lookAhead() !== TokenType.SEP_SEMI) {
                 this.skipIf([TokenType.SEP_RPAREN]);
                 return stat;
@@ -478,9 +604,9 @@ export class Parser {
         this.next();
 
         const pred = this.parseExpression();
-        if (!pred.completed) {
+        if (pred && !pred.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.FOR_EXPR);
-            completeFlag = false;
+            //completeFlag = false;
             if (this.lookAhead() !== TokenType.SEP_SEMI) {
                 this.skipIf([TokenType.SEP_RPAREN]);
                 return stat;
@@ -491,7 +617,7 @@ export class Parser {
         const predSemi = this.lookAhead();
         if (predSemi !== TokenType.SEP_SEMI) {
             this.skipUntil(SKIP_UNTIL_GROUP.FOR_EXPR);
-            completeFlag = false;
+            //completeFlag = false;
             if (this.lookAhead() !== TokenType.SEP_SEMI) {
                 this.skipIf([TokenType.SEP_RPAREN]);
                 return stat;
@@ -500,9 +626,9 @@ export class Parser {
         this.next();
 
         const end = this.parseExpression();
-        if (!end.completed) {
+        if (end && !end.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.FOR_EXPR);
-            completeFlag = false;
+            //completeFlag = false;
             this.skipIf([TokenType.SEP_RPAREN]);
             return stat;
         }
@@ -510,7 +636,7 @@ export class Parser {
 
         if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
             this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
-            completeFlag = false;
+            //completeFlag = false;
             this.skipIf([TokenType.SEP_RPAREN]);
             return stat;
         }
@@ -518,19 +644,20 @@ export class Parser {
         const forBody = this.parseStatement();
 
         stat.stat = forBody;
-        stat.completed = completeFlag;
+        if (forBody)
+            stat.completed = forBody.completed;
         return stat;
     }
+
     private statSwitch(): Node.SwitchNode {
         const stat = new Node.SwitchNode();
-        this.next();
 
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
             this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
             return stat;
         }
         const expr = this.parseExpression();
-        if (!expr.completed) {
+        if (!expr?.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
             this.skipIf([TokenType.SEP_RPAREN]);
             return stat;
@@ -555,7 +682,7 @@ export class Parser {
                 const caseNode = new Node.CaseNode();
                 this.next();
                 const pred = this.parseExpression();
-                if (!pred.completed) {
+                if (!pred?.completed) {
                     this.skipUntil(SKIP_UNTIL_GROUP.CASE_PRED);
                     this.skipIf([TokenType.SEP_COLON]);
                 }
@@ -567,13 +694,14 @@ export class Parser {
                 }
                 while (true) {
                     const ahead = this.lookAhead();
-                    if (ahead === TokenType.KW_CASE || ahead === TokenType.KW_DEFAULT || ahead === TokenType.SEP_RCURLY) {
+                    if (ahead === TokenType.KW_CASE
+                         || ahead === TokenType.KW_DEFAULT
+                         || ahead === TokenType.SEP_RCURLY) {
                         break;
                     }
                     const caseStat = this.parseStatement();
                     caseNode.stats.push(caseStat);
                 }
-
                 stat.cases.push(caseNode);
             }
             else if (ahead === TokenType.KW_DEFAULT) {
@@ -588,7 +716,9 @@ export class Parser {
                 }
                 while (true) {
                     const ahead = this.lookAhead();
-                    if (ahead === TokenType.KW_CASE || ahead === TokenType.KW_DEFAULT || ahead === TokenType.SEP_RCURLY) {
+                    if (ahead === TokenType.KW_CASE
+                         || ahead === TokenType.KW_DEFAULT
+                         || ahead === TokenType.SEP_RCURLY) {
                         break;
                     }
                     const caseStat = this.parseStatement();
@@ -599,6 +729,8 @@ export class Parser {
                 defaultTrigged = true;
             }
             else if (ahead === TokenType.SEP_RCURLY) {
+                //吃掉}
+                this.next();
                 break;
             }
             else if (ahead === TokenType.EOF) {
@@ -609,7 +741,7 @@ export class Parser {
                 this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             }
         }
-        
+
         stat.completed = true;
         return stat;
     }
@@ -617,14 +749,13 @@ export class Parser {
     private statTry(): Node.Stat {
         const stat = new Node.TryNode();
         this.next();
-        const lcurlyExpected = this.lookAhead();
+        let lcurlyExpected = this.lookAhead();
         if (lcurlyExpected !== TokenType.SEP_LCURLY) {
             this.errorStack.push(IDiagnostic.create(this.posAhead(), "'{' expected"));
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
         }
-        const tryBlock = this.statBlock();
-        stat.tryBlock = tryBlock;
+        stat.tryBlock = this.statBlock();
         if (!this.assertAndTake(TokenType.KW_CATCH)) {
             this.errorStack.push(IDiagnostic.create(this.posAhead(), "'catch' expected"));
             return stat;
@@ -633,11 +764,10 @@ export class Parser {
         const optionalLparen = this.lookAhead();
         if (optionalLparen === TokenType.SEP_LPAREN) {
             this.next();
-            const optionalIdentifier = this.parseIdentifier();
-            if (!optionalIdentifier.completed) {
+            stat.catchParam = this.parseIdentifier();
+            if (!stat.catchParam) {
                 this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
             }
-            stat.catchParam = optionalIdentifier;
             if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
                 this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
                 if (!this.skipIf([TokenType.SEP_RPAREN])) {
@@ -646,19 +776,21 @@ export class Parser {
             }
         }
 
-        const catchBlock = this.statBlock();
-        stat.catchBlock = catchBlock;
-        stat.completed = true;
+        lcurlyExpected = this.lookAhead();
+        if (lcurlyExpected !== TokenType.SEP_LCURLY) {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "'{' expected"));
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
+        stat.catchBlock = this.statBlock();
+        stat.completed = stat.tryBlock.completed && stat.catchBlock.completed;
         return stat;
     }
+
     private statFunction(): Node.FunctionNode {
         const func = new Node.FunctionNode();
-        this.next();
-        const funcName = this.parseIdentifier();
-        if (!funcName.completed) {
-            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
-            return func;
-        }
+        func.name = this.parseIdentifier();
+        //name为undefined表示匿名函数，不是出错
         
         const lparenExpected = this.lookAhead();
         if (lparenExpected === TokenType.SEP_LPAREN) {
@@ -677,9 +809,10 @@ export class Parser {
                     }
                     const parNameExpected = this.lookAhead();
                     const parNode = new Node.FunctionParameterNode();
+                    let pushed = false;
                     if (parNameExpected === TokenType.IDENTIFIER) {
                         const id = this.parseIdentifier();
-                        if (!id.completed) {
+                        if (!id?.completed) {
                             this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
                             if (this.lookAhead() !== TokenType.SEP_COMMA || this.lookAhead() !== TokenType.SEP_RPAREN) {
                                 return func;
@@ -694,6 +827,7 @@ export class Parser {
                             this.next();
                             parNode.parType = Node.FunctionParameterNode.FunctionParameterType.Args;
                             func.paramList.push(parNode);
+                            pushed = true;
                             if (this.lookAhead() === TokenType.OP_ASSIGN) {
                                 this.errorStack.push(IDiagnostic.create(this.posAhead(), "args parameter should not have an initializer"));
                             }
@@ -704,6 +838,7 @@ export class Parser {
                         this.next();
                         parNode.parType = Node.FunctionParameterNode.FunctionParameterType.UnnamedArgs;
                         func.paramList.push(parNode);
+                        pushed = true;
                         if (this.lookAhead() === TokenType.OP_ASSIGN) {
                             this.errorStack.push(IDiagnostic.create(this.posAhead(), "args parameter should not have an initializer"));
                         }
@@ -719,19 +854,22 @@ export class Parser {
                         }
                     }
 
-                    const maybeAssign = this.lookAhead();
-                    if (maybeAssign === TokenType.OP_ASSIGN) {
-                        if (parNode.parType !== undefined) {
-                            parNode.parType = Node.FunctionParameterNode.FunctionParameterType.WithInitializer;
-                        }
-                        this.next();
-                        const init = this.parseExpression();
-                        parNode.initExpr = init;
-                        if (!init.completed) {
-                            this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
-                            if (this.lookAhead() !== TokenType.SEP_COMMA) {
-                                this.skipIf([TokenType.SEP_RPAREN]);
-                                return func;
+                    if(!pushed)
+                    {
+                        const maybeAssign = this.lookAhead();
+                        if (maybeAssign === TokenType.OP_ASSIGN) {
+                            if (parNode.parType !== undefined) {
+                                parNode.parType = Node.FunctionParameterNode.FunctionParameterType.WithInitializer;
+                            }
+                            this.next();
+                            const init = this.parseExpression();
+                            parNode.initExpr = init;
+                            if (!init?.completed) {
+                                this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
+                                if (this.lookAhead() !== TokenType.SEP_COMMA) {
+                                    this.skipIf([TokenType.SEP_RPAREN]);
+                                    return func;
+                                }
                             }
                         }
                     }
@@ -763,15 +901,21 @@ export class Parser {
             }
         }
         
+        let lcurlyExpected = this.lookAhead();
+        if (lcurlyExpected !== TokenType.SEP_LCURLY) {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "'{' expected"));
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return func;
+        }
         const body = this.statBlock();
         func.stat = body;
-        func.completed = true;
+        func.completed = body.completed;
         return func;
 
     }
+
     private statPropertySetter(): Node.PropertySetterNode {
         const stat = new Node.PropertySetterNode();
-        this.next();
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
             this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
             if (this.lookAhead() !== TokenType.SEP_LCURLY) {
@@ -779,9 +923,10 @@ export class Parser {
             }
         }
         else {
-            const id = this.parseIdentifier();
-            stat.arg = id;
-            if (!id.completed) {
+            stat.arg = this.parseIdentifier();
+            if(!stat.arg)
+            {
+                this.errorStack.push(IDiagnostic.create(this.posAhead(), "setter must has an argument"));
                 this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
                 if (this.lookAhead() !== TokenType.SEP_RPAREN) {
                     return stat;
@@ -799,11 +944,18 @@ export class Parser {
             }
         }
 
+        let lcurlyExpected = this.lookAhead();
+        if (lcurlyExpected !== TokenType.SEP_LCURLY) {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "'{' expected"));
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
         const setterBody = this.statBlock();
         stat.block = setterBody;
-        stat.completed = true;
+        stat.completed = setterBody.completed;
         return stat;
     }
+
     private statPropertyGetter(): Node.PropertyGetterNode {
         const stat = new Node.PropertyGetterNode();
         this.next();
@@ -830,14 +982,27 @@ export class Parser {
             }
         }
 
+        let lcurlyExpected = this.lookAhead();
+        if (lcurlyExpected !== TokenType.SEP_LCURLY) {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "'{' expected"));
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
         const getterBody = this.statBlock();
         stat.block = getterBody;
-        stat.completed = true;
+        stat.completed = getterBody.completed;
         return stat;
     }
+
     private statProperty(): Node.PropertyNode {
         const stat = new Node.PropertyNode();
-        this.next();
+        
+        stat.name = this.parseIdentifier();
+        if(!stat.name)
+        {
+            this.errorStack.push(IDiagnostic.create(this.posAhead(), "property must has a name"));
+        }
+
         if (!this.assertAndTake(TokenType.SEP_LCURLY)) {
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
@@ -852,6 +1017,7 @@ export class Parser {
                     this.errorStack.push(IDiagnostic.create(this.posAhead(), "duplicated setter"));
                 }
                 setterDefined = true;
+                this.next();
                 const setter = this.statPropertySetter();
                 stat.getterAndSetter.push(setter);
             }
@@ -860,6 +1026,7 @@ export class Parser {
                     this.errorStack.push(IDiagnostic.create(this.posAhead(), "duplicated getter"));
                 }
                 getterDefined = true;
+                this.next();
                 const getter = this.statPropertyGetter();
                 stat.getterAndSetter.push(getter);
             }
@@ -878,14 +1045,16 @@ export class Parser {
             this.next();
             return stat;
         }
-        stat.completed = true;
+        //至少有任一个
+        stat.completed = getterDefined || setterDefined;
         return stat;
     }
+
     private statVarEntry(): Node.VarEntryNode {
         const stat = new Node.VarEntryNode();
         const id = this.parseIdentifier();
         stat.name = id;
-        if (!id.completed) {
+        if (!id) {
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
         }
@@ -894,7 +1063,7 @@ export class Parser {
             const expr = this.parseExpression();
             stat.hasInitializer = true;
             stat.initializer = expr;
-            if (!expr.completed) {
+            if (!expr?.completed) {
                 this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
                 return stat;
             }
@@ -902,9 +1071,9 @@ export class Parser {
         stat.completed = true;
         return stat;
     }
+
     private statVar(): Node.VarNode {
         const stat = new Node.VarNode();
-        this.next(); // var
         while (true) {
             const var0 = this.statVarEntry();
             stat.entries.push(var0);
@@ -925,20 +1094,23 @@ export class Parser {
         stat.completed = true;
         return stat;
     }
+
     private statClass(): Node.Stat {
         const stat = new Node.ClassNode();
         const id = this.parseIdentifier();
         stat.name = id;
-        if (!id.completed) {
+        if (!id) {
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
         }
         if (this.lookAhead() === TokenType.KW_EXTENDS) {
             this.next();
             while (true) {
-                const base = this.parseExpression();
-                stat.extendList.push(base);
-                if (!base.completed) {
+                const base = this.parseIdentifier();
+                if(base) {
+                    stat.extendList.push(base);
+                }
+                else {
                     this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
                     break;
                 }
@@ -957,17 +1129,23 @@ export class Parser {
             return stat;
         }
         while (true) {
-            if (this.lookAhead() === TokenType.KW_VAR) {
+            let token = this.next();
+            if (token.type === TokenType.KW_VAR) {
                 stat.fields.push(this.statVar());
             }
-            else if (this.lookAhead() === TokenType.KW_PROPERTY) {
+            else if (token.type === TokenType.KW_PROPERTY) {
                 stat.properties.push(this.statProperty());
             }
-            else if (this.lookAhead() === TokenType.KW_FUNCTION) {
+            else if (token.type === TokenType.KW_FUNCTION) {
                 stat.methods.push(this.statFunction());
             }
-            else if (this.lookAhead() === TokenType.SEP_RCURLY || this.lookAhead() === TokenType.EOF) {
+            else if (token.type === TokenType.SEP_RCURLY) {
                 break;
+            }
+            else if (token.type === TokenType.EOF){
+                this.skipUntil(SKIP_UNTIL_GROUP.RCURLY_EXPECTED);
+                this.skipIf([TokenType.SEP_RCURLY]);
+                return stat;
             }
             else {
                 this.errorStack.push(IDiagnostic.create(this.posAhead(), "'var', 'property', 'function' expected"));
@@ -975,14 +1153,10 @@ export class Parser {
             }
         }
 
-        if (!this.assertAndTake(TokenType.SEP_RCURLY)) {
-            this.skipUntil(SKIP_UNTIL_GROUP.RCURLY_EXPECTED);
-            this.skipIf([TokenType.SEP_RCURLY]);
-            return stat;
-        }
         stat.completed = true;
         return stat;
     }
+
     private statWith(): Node.Stat {
         const stat = new Node.WithNode();
         this.next();
@@ -991,7 +1165,7 @@ export class Parser {
             return stat;
         }
         const expr = this.parseExpression();
-        if (!expr.completed) {
+        if (!expr?.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
             this.skipIf([TokenType.SEP_RPAREN]);
             return stat;
@@ -1004,19 +1178,19 @@ export class Parser {
         }
         const withBody = this.parseStatement();
         stat.stat = withBody;
-        stat.completed = true;
+        if(withBody)
+            stat.completed = withBody.completed;
         return stat;
     }
 
     private statIf(): Node.Stat {
         const stat = new Node.IfNode();
-        this.next();
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
             this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
             return stat;
         }
         const expr0 = this.parseExpression();
-        if (!expr0.completed) {
+        if (!expr0?.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
             this.skipIf([TokenType.SEP_RPAREN]);
             return stat;
@@ -1032,7 +1206,8 @@ export class Parser {
         stat.trueStat = trueStat;
 
         if (this.lookAhead() !== TokenType.KW_ELSE) {
-            stat.completed = true;
+            if(trueStat)
+                stat.completed = trueStat.completed;
             return stat;
         }
 
@@ -1040,14 +1215,13 @@ export class Parser {
         const falseStat = this.parseStatement();
         stat.falseStat = falseStat;
 
-        stat.completed = true;
+        if(trueStat && falseStat)
+            stat.completed = trueStat.completed || falseStat.completed;
         return stat;
     }
 
     private statBlock(): Node.ChunkNode {
         const chunk = new Node.ChunkNode(false);
-
-        this.next();
         for (let ahead = this.lookAhead(); ahead !== TokenType.EOF; ahead = this.lookAhead()) {
             if (ahead === TokenType.SEP_RCURLY) {
                 this.next();

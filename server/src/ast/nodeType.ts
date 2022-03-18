@@ -58,6 +58,8 @@ export enum NodeType
     BITXOR,
     /** = */
     SET,
+    /** <-> */
+    CHANGE,
     /** &= */
     SETBITAND,
     /** |= */
