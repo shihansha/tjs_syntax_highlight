@@ -107,6 +107,8 @@ export enum NodeType
     CLASS,
     FUNCTION,
     FUNCTION_PARAMETER,
+    GETTER,
+    SETTER,
     PROPERTY,
     RETURN,
     BREAK,
@@ -114,6 +116,7 @@ export enum NodeType
     /** => */
     VALUE,
     VAR,
+    VAR_ENTRY,
 
     CONST,
     LITERAL,

@@ -13,6 +13,10 @@ const TJS_MODE = LexerMode.TJS;
 
 const SKIP_UNTIL_GROUP = {
     /**
+     * 希望遇到一个 }，一般在 class 和 property 的定义中使用。
+     */
+    RCURLY_EXPECTED: [TokenType.SEP_RCURLY],
+    /**
      * 期望结束一条 stat。
      */
     STAT_END: [TokenType.SEP_SEMI, TokenType.SEP_LCURLY, TokenType.SEP_RCURLY],
@@ -140,17 +144,18 @@ export class Parser {
         return false;
     }
     private skipUntil(types: readonly TokenType[]) {
-        const lookAhead = this.lookAhead();
+        let lookAhead = this.lookAhead();
         var blockcount = 0;
         while(lookAhead != TokenType.EOF)
         {
-            if (lookAhead == TokenType.SEP_LCURLY)
-                blockcount++;
-            if (lookAhead == TokenType.SEP_RCURLY)
-                blockcount--;
             if (blockcount == 0 && (types.includes(lookAhead)))
                 break;
+            if (lookAhead == TokenType.SEP_LCURLY)
+                blockcount++;
+            else if (lookAhead == TokenType.SEP_RCURLY)
+                blockcount--;
             this.next();
+            lookAhead = this.lookAhead();
         }
     }
 
@@ -313,6 +318,12 @@ export class Parser {
         return pnode;
     }
 
+    /**
+     * 转换一个 expr。expr 代表存在一个值的节点。
+     * 
+     * 转换一个 expr 时，我们约定，出错时不调用 `skip` 方法，而是将 `completed` 标记为 `false`，然后直接返回。
+     * stat 的转换器负责从错误中恢复。
+     */
     private parseExpression(): Node.Expr {
         throw new Error("Method not implemented.");
     }
@@ -359,11 +370,6 @@ export class Parser {
                 return new Node.StatNode();
             default:
                 return this.statExpr();
-                const unexpected = this.next();
-                this.errorStack.push(IDiagnostic.create(unexpected.range, `unexpected token '${unexpected.value}'`));
-                this.skipToLineEnd();
-                // return an empty statement node
-                return new Node.StatNode();    
         }
     }
     private statExpr(): Node.Stat {
@@ -645,7 +651,7 @@ export class Parser {
         stat.completed = true;
         return stat;
     }
-    private statFunction(): Node.Stat {
+    private statFunction(): Node.FunctionNode {
         const func = new Node.FunctionNode();
         this.next();
         const funcName = this.parseIdentifier();
@@ -763,30 +769,102 @@ export class Parser {
         return func;
 
     }
-    private statProperty(): Node.Stat {
-        const stat = new Node.PropertyNode();
+    private statPropertySetter(): Node.PropertySetterNode {
+        const stat = new Node.PropertySetterNode();
         this.next();
         if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
+            if (this.lookAhead() !== TokenType.SEP_LCURLY) {
+                return stat;
+            }
+        }
+        else {
+            const id = this.parseIdentifier();
+            stat.arg = id;
+            if (!id.completed) {
+                this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+                if (this.lookAhead() !== TokenType.SEP_RPAREN) {
+                    return stat;
+                }
+            }
+
+            if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
+                this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+                if (this.lookAhead() === TokenType.SEP_RPAREN) {
+                    this.next();
+                }
+                else {
+                    return stat;
+                }
+            }
+        }
+
+        const setterBody = this.statBlock();
+        stat.block = setterBody;
+        stat.completed = true;
+        return stat;
+    }
+    private statPropertyGetter(): Node.PropertyGetterNode {
+        const stat = new Node.PropertyGetterNode();
+        this.next();
+        if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
+            if (this.lookAhead() !== TokenType.SEP_LCURLY) {
+                return stat;
+            }
+        }
+        else {
+            if (this.lookAhead() === TokenType.IDENTIFIER) {
+                this.errorStack.push(IDiagnostic.create(this.posAhead(), "getter should not have parameters"));
+                this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+            }
+
+            if (!this.assertAndTake(TokenType.SEP_RPAREN)) {
+                this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+                if (this.lookAhead() === TokenType.SEP_RPAREN) {
+                    this.next();
+                }
+                else {
+                    return stat;
+                }
+            }
+        }
+
+        const getterBody = this.statBlock();
+        stat.block = getterBody;
+        stat.completed = true;
+        return stat;
+    }
+    private statProperty(): Node.PropertyNode {
+        const stat = new Node.PropertyNode();
+        this.next();
+        if (!this.assertAndTake(TokenType.SEP_LCURLY)) {
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
             return stat;
         }
-        this.next();
+        let setterDefined = false;
+        let getterDefined = false;
 
         while (true) {
             const setterOrGetter = this.lookAhead();
             if (setterOrGetter === TokenType.KW_SETTER) {
-                this.next();
-                if (!this.assertAndTake(TokenType.SEP_LPAREN)) {
-                    this.skipUntil(SKIP_UNTIL_GROUP.PAREN_EXP_EXPECTED);
-                    return stat;
+                if (setterDefined) {
+                    this.errorStack.push(IDiagnostic.create(this.posAhead(), "duplicated setter"));
                 }
-                const id = this.parseIdentifier();
-                if (!id.completed) {
-
-                }
+                setterDefined = true;
+                const setter = this.statPropertySetter();
+                stat.getterAndSetter.push(setter);
             }
             else if (setterOrGetter === TokenType.KW_GETTER) {
-
+                if (getterDefined) {
+                    this.errorStack.push(IDiagnostic.create(this.posAhead(), "duplicated getter"));
+                }
+                getterDefined = true;
+                const getter = this.statPropertyGetter();
+                stat.getterAndSetter.push(getter);
+            }
+            else if (setterOrGetter === TokenType.SEP_RCURLY || setterOrGetter === TokenType.EOF) {
+                break;
             }
             else {
                 this.errorStack.push(IDiagnostic.create(this.posAhead(), "keyword 'getter' or 'setter' expected"));
@@ -795,10 +873,115 @@ export class Parser {
             }
         }
 
-        throw new Error("Method not implemented.");
+        if (!this.assertAndTake(TokenType.SEP_RCURLY)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.RCURLY_EXPECTED);
+            this.next();
+            return stat;
+        }
+        stat.completed = true;
+        return stat;
+    }
+    private statVarEntry(): Node.VarEntryNode {
+        const stat = new Node.VarEntryNode();
+        const id = this.parseIdentifier();
+        stat.name = id;
+        if (!id.completed) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
+        if (this.lookAhead() === TokenType.OP_ASSIGN) {
+            this.next();
+            const expr = this.parseExpression();
+            stat.hasInitializer = true;
+            stat.initializer = expr;
+            if (!expr.completed) {
+                this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+                return stat;
+            }
+        }
+        stat.completed = true;
+        return stat;
+    }
+    private statVar(): Node.VarNode {
+        const stat = new Node.VarNode();
+        this.next(); // var
+        while (true) {
+            const var0 = this.statVarEntry();
+            stat.entries.push(var0);
+
+            if (this.lookAhead() === TokenType.SEP_COMMA) {
+                this.next();
+                continue;
+            }
+            else if (this.lookAhead() === TokenType.SEP_SEMI || this.lookAhead() === TokenType.EOF) {
+                break;
+            }
+        }
+        if (!this.assertAndTake(TokenType.SEP_SEMI)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            this.skipIf([TokenType.SEP_SEMI]);
+            return stat;
+        }
+        stat.completed = true;
+        return stat;
     }
     private statClass(): Node.Stat {
-        throw new Error("Method not implemented.");
+        const stat = new Node.ClassNode();
+        const id = this.parseIdentifier();
+        stat.name = id;
+        if (!id.completed) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
+        if (this.lookAhead() === TokenType.KW_EXTENDS) {
+            this.next();
+            while (true) {
+                const base = this.parseExpression();
+                stat.extendList.push(base);
+                if (!base.completed) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+                    break;
+                }
+
+                if (this.lookAhead() === TokenType.SEP_COMMA) {
+                    this.next();
+                }
+                else if (this.lookAhead() === TokenType.SEP_LCURLY || this.lookAhead() === TokenType.EOF) {
+                    break;
+                }
+            }
+        }
+
+        if (!this.assertAndTake(TokenType.SEP_LCURLY)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return stat;
+        }
+        while (true) {
+            if (this.lookAhead() === TokenType.KW_VAR) {
+                stat.fields.push(this.statVar());
+            }
+            else if (this.lookAhead() === TokenType.KW_PROPERTY) {
+                stat.properties.push(this.statProperty());
+            }
+            else if (this.lookAhead() === TokenType.KW_FUNCTION) {
+                stat.methods.push(this.statFunction());
+            }
+            else if (this.lookAhead() === TokenType.SEP_RCURLY || this.lookAhead() === TokenType.EOF) {
+                break;
+            }
+            else {
+                this.errorStack.push(IDiagnostic.create(this.posAhead(), "'var', 'property', 'function' expected"));
+                this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            }
+        }
+
+        if (!this.assertAndTake(TokenType.SEP_RCURLY)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.RCURLY_EXPECTED);
+            this.skipIf([TokenType.SEP_RCURLY]);
+            return stat;
+        }
+        stat.completed = true;
+        return stat;
     }
     private statWith(): Node.Stat {
         const stat = new Node.WithNode();

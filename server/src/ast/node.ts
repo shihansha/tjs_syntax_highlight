@@ -17,6 +17,9 @@ export class Node<T extends NodeType = NodeType> {
     op : T;
     analysisType: Analysis.IAnalysisType | null;
     range: IRange;
+    /**
+     * 指示该节点是否已完整。(这与在翻译中是否出现了错误无关，如果 parser 从错误中成功恢复，节点也可能是完整的)
+     */
     completed: boolean;
 
     public constructor(op: T) {
@@ -130,8 +133,8 @@ export class WithNode extends Stat<NodeType.WITH> {
         super(NodeType.WITH);
     }
 
-    public expr?: Expr<NodeType>;
-    public stat?: Stat<NodeType>;
+    public expr?: Expr;
+    public stat?: Stat;
 }
 
 export class SwitchNode extends Stat<NodeType.SWITCH> {
@@ -139,7 +142,7 @@ export class SwitchNode extends Stat<NodeType.SWITCH> {
         super(NodeType.SWITCH);
     }
 
-    public expr?: Expr<NodeType>;
+    public expr?: Expr;
     public readonly cases: CaseNode[] = [];
 }
 
@@ -147,7 +150,7 @@ export class CaseNode extends Stat<NodeType.CASE> {
     constructor() {
         super(NodeType.CASE);
     }
-    public pred?: Expr<NodeType>;
+    public pred?: Expr;
     public readonly stats: Stat[] = [];
     public isDefaultBranch() {
         return this.pred === undefined;
@@ -158,9 +161,9 @@ export class TryNode extends Stat<NodeType.TRY> {
     constructor() {
         super(NodeType.TRY);
     }
-    public tryBlock?: Stat<NodeType.CHUNK>;
-    public catchParam?: Expr<NodeType.IDENTIFIER>;
-    public catchBlock?: Stat<NodeType.CHUNK>;
+    public tryBlock?: ChunkNode;
+    public catchParam?: IdentifierNode;
+    public catchBlock?: ChunkNode;
 }
 
 export class FunctionNode extends Stat<NodeType.FUNCTION> {
@@ -168,16 +171,60 @@ export class FunctionNode extends Stat<NodeType.FUNCTION> {
         super(NodeType.FUNCTION);
     }
     public paramList: FunctionParameterNode[] = [];
-    public stat?: Stat<NodeType.CHUNK>;
+    public stat?: ChunkNode;
 }
 
 export class PropertyNode extends Stat<NodeType.PROPERTY> {
     constructor() {
         super(NodeType.PROPERTY);
     }
-    public getterBlock?: Stat<NodeType.CHUNK>;
-    public setterBlock?: Stat<NodeType.CHUNK>;
-    public setterArg?: Expr<NodeType.IDENTIFIER>;
+    
+    public getterAndSetter: (PropertyGetterNode | PropertySetterNode)[] = [];  
+}
+
+export class PropertyGetterNode extends Stat<NodeType.GETTER> {
+    constructor() {
+        super(NodeType.GETTER);
+    }
+
+    public block?: ChunkNode;
+}
+
+export class PropertySetterNode extends Stat<NodeType.SETTER> {
+    constructor() {
+        super(NodeType.SETTER);
+    }
+
+    public arg?: IdentifierNode;
+    public block?: ChunkNode;
+}
+
+export class VarEntryNode extends Stat<NodeType.VAR_ENTRY> {
+    constructor() {
+        super(NodeType.VAR_ENTRY);
+    }
+    public hasInitializer = false;
+    public name?: IdentifierNode;
+    public initializer?: Expr;
+}
+
+export class VarNode extends Stat<NodeType.VAR> {
+    constructor() {
+        super(NodeType.VAR);
+    }
+
+    public entries: VarEntryNode[] = [];
+}
+
+export class ClassNode extends Stat<NodeType.CLASS> {
+    constructor() {
+        super(NodeType.CLASS);
+    }
+    public name?: IdentifierNode;
+    public extendList: Expr[] = [];
+    public properties: PropertyNode[] = [];
+    public methods: FunctionNode[] = [];
+    public fields: VarNode[] = []; 
 }
 
 enum FunctionParameterType {
