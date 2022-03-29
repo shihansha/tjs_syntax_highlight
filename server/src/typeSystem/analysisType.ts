@@ -77,6 +77,8 @@ export class ExactTypeAnalysisType implements IAnalysisType {
 }
 
 export class UnknownAnalysisType implements IAnalysisType {
+    private constructor() {}
+
     canAccept(_: IAnalysisType): boolean {
         return true;
     }
@@ -84,4 +86,5 @@ export class UnknownAnalysisType implements IAnalysisType {
         return "any";
     }
     
+    public static readonly Instance = new UnknownAnalysisType();
 }

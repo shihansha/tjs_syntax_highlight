@@ -92,6 +92,8 @@ export enum TokenType {
     OP_UNARY_MINUS = "-",
     OP_PROPERTY_GETOBJ = "&",
     OP_PROPERTY_CALLOBJ = "*",
+    OP_ACCESS = ".",
+    OP_EVAL = "!",
     OP_INSTANCEOF = "instanceof",
     OP_INCONTEXTOF = "incontextof",
     OP_INT = "int",

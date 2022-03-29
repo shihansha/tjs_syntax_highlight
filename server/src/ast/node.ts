@@ -9,147 +9,68 @@ export enum Accessablity {
     LValue,
 }
 
-export class Node<T extends NodeType = NodeType> {
-    accessability: Accessablity;
-    token: Token | null;
-    children: Node<NodeType>[];
-    parent: Node<NodeType> | null;
-    op : T;
-    analysisType: Analysis.IAnalysisType | null;
-    range: IRange;
-    /**
-     * 指示该节点是否已完整。(这与在翻译中是否出现了错误无关，如果 parser 从错误中成功恢复，节点也可能是完整的)
-     */
-    completed: boolean;
-
-    public constructor(op: T) {
-        this.accessability = Accessablity.RValue;
-        this.token = null;
-        this.children = [];
-        this.parent = null;
-        this.op = op;
-        this.analysisType = null;
-        this.range = { 
-            start: { 
-                line: 0, 
-                character: 0 
-            }, 
-            end: { 
-                line: 0, 
-                character: 0 
-            } 
-        };
-        this.completed = false;
-    }
-
-    public calcRange()
-    {
-        if(this.children.length > 0)
-        {
-            this.range.start = this.children[0].range.start;
-            this.range.end = this.children[this.children.length - 1].range.end;
-        }
-    }
-
-    public addParent<U extends NodeType>(p: Node<U>): Node<U>{
-        p.children.push(this);
-        this.parent = p;
-        return p;
-    }
+export class Node {
+    public completed = false;
+    public parent?: Node;
 }
 
-export class Stat<T extends NodeType = NodeType> extends Node<T> {
-    override analysisType: null;
-    constructor(type: T) {
-        super(type);
-        this.analysisType = null;
-    }
+export class Stat extends Node {
+
 }
 
-export class Expr<T extends NodeType = NodeType> extends Node<T> {
-    override analysisType: Analysis.IAnalysisType;
-    constructor(type: T) {
-        super(type);
-        this.analysisType = new Analysis.UnknownAnalysisType();
-    }
+export class ExprStat extends Stat {
+    public expr?: Expr;
 }
 
-export class ChunkNode extends Stat<NodeType.CHUNK> {
-    isglobal : boolean;
-
-    public constructor(isglobal: boolean) {
-        super(NodeType.CHUNK);
-        this.isglobal = isglobal;
-    }
+export class Expr extends Node {
+    public accessablity: Accessablity = Accessablity.RValue;
+    public analysisType: Analysis.IAnalysisType = Analysis.UnknownAnalysisType.Instance;
 }
 
-export class StatNode extends Stat<NodeType.STATEMENT> {
-    public constructor() {
-        super(NodeType.STATEMENT);
+export class BlockNode extends Stat {
+    public constructor(
+        public readonly isGlobal = false,
+    ) {
+        super();
     }
+
+    public readonly stats: Stat[] = [];
 }
 
-export class WhileNode extends Stat<NodeType.WHILE> {
-    constructor() {
-        super(NodeType.WHILE);
-    }
-
-    public pred?: Expr<NodeType>;
-    public stat?: Stat<NodeType>;
+export class WhileNode extends Stat {
+    public pred?: Expr;
+    public stat?: Stat;
 }
 
-export class DoNode extends Stat<NodeType.DO> {
-    constructor() {
-        super(NodeType.DO);
-    }
-
-    public stat?: Stat<NodeType>;
-    public pred?: Expr<NodeType>;
+export class DoNode extends Stat {
+    public stat?: Stat;
+    public pred?: Expr;
 }
 
-export class IfNode extends Stat<NodeType.IF> {
-    constructor() {
-        super(NodeType.IF);
-    }
-
-    public pred?: Expr<NodeType>;
-    public trueStat?: Stat<NodeType>;
-    public falseStat?: Stat<NodeType>;
+export class IfNode extends Stat {
+    public pred?: Expr;
+    public trueStat?: Stat;
+    public falseStat?: Stat;
 }
 
-export class ForNode extends Stat<NodeType.FOR> {
-    constructor() {
-        super(NodeType.FOR);
-    }
-
-    public init?: Expr<NodeType>;
-    public pred?: Expr<NodeType>;
-    public end?: Expr<NodeType>;
-    public stat?: Stat<NodeType>;
+export class ForNode extends Stat {
+    public init?: Expr;
+    public pred?: Expr;
+    public end?: Expr;
+    public stat?: Stat;
 }
 
-export class WithNode extends Stat<NodeType.WITH> {
-    constructor() {
-        super(NodeType.WITH);
-    }
-
+export class WithNode extends Stat {
     public expr?: Expr;
     public stat?: Stat;
 }
 
-export class SwitchNode extends Stat<NodeType.SWITCH> {
-    constructor() {
-        super(NodeType.SWITCH);
-    }
-
+export class SwitchNode extends Stat {
     public expr?: Expr;
     public readonly cases: CaseNode[] = [];
 }
 
-export class CaseNode extends Stat<NodeType.CASE> {
-    constructor() {
-        super(NodeType.CASE);
-    }
+export class CaseNode extends Stat {
     public pred?: Expr;
     public readonly stats: Stat[] = [];
     public isDefaultBranch() {
@@ -157,74 +78,47 @@ export class CaseNode extends Stat<NodeType.CASE> {
     }
 }
 
-export class TryNode extends Stat<NodeType.TRY> {
-    constructor() {
-        super(NodeType.TRY);
-    }
-    public tryBlock?: ChunkNode;
+export class TryNode extends Stat {
+    public tryBlock?: BlockNode;
     public catchParam?: IdentifierNode;
-    public catchBlock?: ChunkNode;
+    public catchBlock?: BlockNode;
 }
 
-export class FunctionNode extends Stat<NodeType.FUNCTION> {
-    constructor() {
-        super(NodeType.FUNCTION);
-    }
+export class FunctionNode extends Stat {
+    public id?: IdentifierNode;
     public paramList: FunctionParameterNode[] = [];
-    public stat?: ChunkNode;
+    public stat?: BlockNode;
 }
 
-export class PropertyNode extends Stat<NodeType.PROPERTY> {
-    constructor() {
-        super(NodeType.PROPERTY);
-    }
-    
-    public getterAndSetter: (PropertyGetterNode | PropertySetterNode)[] = [];  
+export class PropertyNode extends Stat {
+    public getterAndSetter: (PropertyGetterNode | PropertySetterNode)[] = [];
 }
 
-export class PropertyGetterNode extends Stat<NodeType.GETTER> {
-    constructor() {
-        super(NodeType.GETTER);
-    }
-
-    public block?: ChunkNode;
+export class PropertyGetterNode extends Stat {
+    public block?: BlockNode;
 }
 
-export class PropertySetterNode extends Stat<NodeType.SETTER> {
-    constructor() {
-        super(NodeType.SETTER);
-    }
-
+export class PropertySetterNode extends Stat {
     public arg?: IdentifierNode;
-    public block?: ChunkNode;
+    public block?: BlockNode;
 }
 
-export class VarEntryNode extends Stat<NodeType.VAR_ENTRY> {
-    constructor() {
-        super(NodeType.VAR_ENTRY);
-    }
+export class VarEntryNode extends Stat {
     public hasInitializer = false;
     public name?: IdentifierNode;
     public initializer?: Expr;
 }
 
-export class VarNode extends Stat<NodeType.VAR> {
-    constructor() {
-        super(NodeType.VAR);
-    }
-
+export class VarNode extends Stat {
     public entries: VarEntryNode[] = [];
 }
 
-export class ClassNode extends Stat<NodeType.CLASS> {
-    constructor() {
-        super(NodeType.CLASS);
-    }
+export class ClassNode extends Stat {
     public name?: IdentifierNode;
     public extendList: Expr[] = [];
     public properties: PropertyNode[] = [];
     public methods: FunctionNode[] = [];
-    public fields: VarNode[] = []; 
+    public fields: VarNode[] = [];
 }
 
 enum FunctionParameterType {
@@ -234,45 +128,82 @@ enum FunctionParameterType {
     UnnamedArgs
 }
 
-export class FunctionParameterNode extends Expr<NodeType.FUNCTION_PARAMETER> {
+export class FunctionParameterNode extends Expr {
     static readonly FunctionParameterType = FunctionParameterType;
-    constructor() {
-        super(NodeType.FUNCTION_PARAMETER);
-    }
     parType?: FunctionParameterType;
     nameExpr?: IdentifierNode;
     initExpr?: Expr;
 }
 
-export class ConstantNode extends Expr<NodeType.CONST>{
-    public constructor(value: any, type: BasicTypes) {
-        super(NodeType.CONST);
-        let t = Type.basic[BasicTypes[type].toLowerCase() as Lowercase<keyof typeof BasicTypes>];
+export class LiteralNode extends Expr {
+    public constructor(value: string, type: BasicTypes.String, tok: Token);
+    public constructor(value: number, type: BasicTypes.Integer | BasicTypes.Real, tok: Token);
+    public constructor(value: number[], type: BasicTypes.Octet, tok: Token);
+    public constructor(value: undefined, type: BasicTypes.void, tok: Token);
+    public constructor(value: undefined, type: BasicTypes.void);
+    public constructor(value: any, type: BasicTypes, tok?: Token) {
+        super();
+        const t = Type.basic[BasicTypes[type].toLowerCase() as Lowercase<keyof typeof BasicTypes>];
         this.analysisType = new Analysis.LiteralAnalysisType(value, t);
+        this.accessablity = Accessablity.RValue;
+        if (tok) {
+            this.completed = true;
+            tok.owner = this;
+        }
     }
 
-    static readonly consts = {
-        void: new ConstantNode(undefined, BasicTypes.void),
-        true: new ConstantNode(1, BasicTypes.Integer),
-        false: new ConstantNode(0, BasicTypes.Integer)
-    } as const;
+    static readonly illegal = new LiteralNode(undefined, BasicTypes.void);
 }
 
-export class IdentifierNode extends Expr<NodeType.IDENTIFIER> {
-    constructor() {
-        super(NodeType.IDENTIFIER);
+export class IdentifierNode extends Expr {
+    public constructor(value: string, tok: Token);
+    public constructor();
+    public constructor(public readonly value?: string, tok?: Token) {
+        super();
+        if (tok) {
+            this.completed = true;
+            tok.owner = this;
+        }
     }
-    public value?: string;
+
+    static readonly illegal = new IdentifierNode();
 }
 
-export class AddNode extends Expr<NodeType.ADD> {
-    public constructor() {
-        super(NodeType.ADD);
+export class BinaryOpExpr extends Expr {
+    public constructor(
+        public readonly left: Expr,
+        public readonly op: Token,
+        public readonly right: Expr) {
+        super();
     }
 }
 
-export class PreAddNode extends Expr<NodeType.PRE_ADD> {
-    public constructor() {
-        super(NodeType.PRE_ADD);
+export class UnaryOpExpr extends Expr {
+    public constructor(
+        public readonly op: Token,
+        public readonly operand: Expr,
+        public readonly isPre: boolean) {
+        super();
     }
+}
+
+export class CondOpExpr extends Expr {
+    public constructor(
+        public readonly pred: Expr,
+        public readonly trueBranch: Expr,
+        public readonly falseBranch: Expr) {
+        super();
+    }
+}
+
+export class InterpolatedString extends Expr {
+    public readonly children: Expr[] = [];
+}
+
+export class ArrayExpr extends Expr {
+    public readonly entries: Expr[] = [];
+}
+
+export class DictExpr extends Expr {
+    public readonly entries: Expr[] = [];
 }

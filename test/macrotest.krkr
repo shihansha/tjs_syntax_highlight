@@ -1,15 +1,20 @@
-
-@set(a=1+1)
-@if(3==2)
+@set(a=(1+1, 1, 0))
+@if(3==2==1)
 var yahu = "hello yahu!";
+@if (1)
+yahu;
 @endif
-@if (a == 2)
-yahu = "hero";
+var yahu; 
 @endif
-@if(0)
-yahu = "hero";
+var yahu; @if (a==0) 
+var yahu;
+var yahu;
+yahu = "hax
+
 @endif
-@if(1)
-yahu = "super hero";
+@if (a==2) 
+yahu = "super hero"
 @endif
-"test end"
+function ab() {
+
+}

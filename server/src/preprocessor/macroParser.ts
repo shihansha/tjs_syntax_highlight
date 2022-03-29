@@ -2,19 +2,19 @@
  * expression lists: 
  * 
  * E := '(' exp0 ')'
- * exp0 := exp1 ',' exp1 | exp1
- * exp1 := %IDENTIFER '=' exp2 | exp2
- * exp2 := exp3 '||' exp3 | exp3
- * exp3 := exp4 '&&' exp4 | exp4
- * exp4 := exp5 '|' exp5 | exp5
- * exp5 := exp6 '^' exp6 | exp6
- * exp6 := exp7 '&' exp7 | exp7
- * exp7 := exp8 '==' exp8 | exp8 '!=' exp8 | exp8
- * exp8 := exp9 '<' exp9 | exp9 '>' exp9 
- *       | exp9 '<=' exp9 | exp9 '>=' exp9 | exp9
- * exp9 := exp10 '+' exp10 | exp10 '-' exp10 | exp10
- * exp10 := exp11 '%' exp11 | exp11 '/' exp11 | exp11 '*' exp11 | exp11
- * exp11 := '!' exp12 | '+' exp12 | '-' exp12 | exp12
+ * exp0 := exp0 ',' exp1 | exp1
+ * exp1 := %IDENTIFER '=' exp1 | exp2
+ * exp2 := exp2 '||' exp3 | exp3
+ * exp3 := exp3 '&&' exp4 | exp4
+ * exp4 := exp4 '|' exp5 | exp5
+ * exp5 := exp5 '^' exp6 | exp6
+ * exp6 := exp6 '&' exp7 | exp7
+ * exp7 := exp7 '==' exp8 | exp7 '!=' exp8 | exp8
+ * exp8 := exp8 '<' exp9 | exp8 '>' exp9 
+ *       | exp8 '<=' exp9 | exp8 '>=' exp9 | exp9
+ * exp9 := exp9 '+' exp10 | exp9 '-' exp10 | exp10
+ * exp10 := exp10 '%' exp11 | exp10 '/' exp11 | exp10 '*' exp11 | exp11
+ * exp11 := '!' exp11 | '+' exp11 | '-' exp11 | exp12
  * exp12 := '(' exp0 ')' | literal
  * literal := %NUMBER | %IDENTIFER
  */
@@ -148,24 +148,21 @@ export class MacroParser {
     }
 
     private parseExp0(): MacroExpr {
-        const par0 = this.parseExp1();
+        let par0 = this.parseExp1();
         par0.eval();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.SEP_COMMA) {
+        while (this.m_lex.lookAhead(this.m_mode) === TokenType.SEP_COMMA) {
             this.m_lex.nextToken(this.m_mode);
             const par1 = this.parseExp1();
-            return par1;
+            par0 = par1;
         }
-        else {
-            return par0;
-        }
+        return par0;
     }
     private parseExp1(): MacroExpr {
         const par0 = this.parseExp2();
         const op = this.m_lex.lookAhead(this.m_mode);
         if (op === TokenType.OP_ASSIGN) {
             const opTok = this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp2();
+            const par1 = this.parseExp1();
             if (par0 instanceof MacroVariableExpr) {
                 par0.assign(par1.eval());
             }
@@ -178,127 +175,130 @@ export class MacroParser {
         return par0;
     }
     private parseExp2(): MacroExpr {
-        const par0 = this.parseExp3();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_OR) {
+        let par0 = this.parseExp3();
+        while (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_OR) {
             this.m_lex.nextToken(this.m_mode);
             const par1 = this.parseExp3();
-            return new MacroNumberExpr(par0.eval() || par1.eval());
+            par0 = new MacroNumberExpr(par0.eval() || par1.eval());
         }
         return par0;
     }
     private parseExp3(): MacroExpr {
-        const par0 = this.parseExp4();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_AND) {
+        let par0 = this.parseExp4();
+        while (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_AND) {
             this.m_lex.nextToken(this.m_mode);
             const par1 = this.parseExp4();
-            return new MacroNumberExpr(par0.eval() && par1.eval());
+            par0 = new MacroNumberExpr(par0.eval() && par1.eval());
         }
         return par0;
     }
     private parseExp4(): MacroExpr {
-        const par0 = this.parseExp5();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_BOR) {
+        let par0 = this.parseExp5();
+        while (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_BOR) {
             this.m_lex.nextToken(this.m_mode);
             const par1 = this.parseExp5();
-            return new MacroNumberExpr(par0.eval() | par1.eval());
+            par0 = new MacroNumberExpr(par0.eval() | par1.eval());
         }
         return par0;
     }
     private parseExp5(): MacroExpr {
-        const par0 = this.parseExp6();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_BXOR) {
+        let par0 = this.parseExp6();
+        while (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_BXOR) {
             this.m_lex.nextToken(this.m_mode);
             const par1 = this.parseExp6();
-            return new MacroNumberExpr(par0.eval() ^ par1.eval());
+            par0 = new MacroNumberExpr(par0.eval() ^ par1.eval());
         }
         return par0;
     }
     private parseExp6(): MacroExpr {
-        const par0 = this.parseExp7();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_BAND) {
+        let par0 = this.parseExp7();
+        while (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_BAND) {
             this.m_lex.nextToken(this.m_mode);
             const par1 = this.parseExp7();
-            return new MacroNumberExpr(par0.eval() || par1.eval());
+            par0 = new MacroNumberExpr(par0.eval() & par1.eval());
         }
         return par0;
     }
     private parseExp7(): MacroExpr {
-        const par0 = this.parseExp8();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_EQ) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp8();
-            return new MacroNumberExpr((par0.eval() === par1.eval()) ? 1 : 0);
-        }
-        else if (op === TokenType.OP_NE) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp8();
-            return new MacroNumberExpr((par0.eval() !== par1.eval()) ? 1 : 0);
+        let par0 = this.parseExp8();
+        const tokenArr = [TokenType.OP_EQ, TokenType.OP_NE];
+        while (tokenArr.includes(this.m_lex.lookAhead(this.m_mode))) {
+            if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_EQ) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp8();
+                par0 = new MacroNumberExpr((par0.eval() === par1.eval()) ? 1 : 0);
+            }
+            else { //  if (op === TokenType.OP_NE)
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp8();
+                par0 = new MacroNumberExpr((par0.eval() !== par1.eval()) ? 1 : 0);
+            }
         }
         return par0;
     }
     private parseExp8(): MacroExpr {
-        const par0 = this.parseExp9();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_LT) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp9();
-            return new MacroNumberExpr((par0.eval() < par1.eval()) ? 1 : 0);
-        }
-        else if (op === TokenType.OP_GT) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp9();
-            return new MacroNumberExpr((par0.eval() > par1.eval()) ? 1 : 0);
-        }
-        else if (op === TokenType.OP_LE) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp9();
-            return new MacroNumberExpr((par0.eval() <= par1.eval()) ? 1 : 0);
-        }
-        else if (op === TokenType.OP_GE) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp9();
-            return new MacroNumberExpr((par0.eval() >= par1.eval()) ? 1 : 0);
+        let par0 = this.parseExp9();
+        const tokenArr = [TokenType.OP_LT, TokenType.OP_GT, TokenType.OP_LE, TokenType.OP_GE];
+        while (tokenArr.includes(this.m_lex.lookAhead(this.m_mode))) {
+            if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_LT) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp9();
+                par0 = new MacroNumberExpr((par0.eval() < par1.eval()) ? 1 : 0);
+            }
+            else if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_GT) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp9();
+                par0 = new MacroNumberExpr((par0.eval() > par1.eval()) ? 1 : 0);
+            }
+            else if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_LE) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp9();
+                par0 = new MacroNumberExpr((par0.eval() <= par1.eval()) ? 1 : 0);
+            }
+            else { // if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_GE)
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp9();
+                par0 = new MacroNumberExpr((par0.eval() >= par1.eval()) ? 1 : 0);
+            }
         }
         return par0;
     }
     private parseExp9(): MacroExpr {
-        const par0 = this.parseExp10();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_ADD) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp10();
-            return new MacroNumberExpr(par0.eval() + par1.eval());
-        }
-        else if (op === TokenType.OP_MINUS) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp10();
-            return new MacroNumberExpr(par0.eval() - par1.eval());
+        let par0 = this.parseExp10();
+        const tokenArr = [TokenType.OP_ADD, TokenType.OP_MINUS];
+        while (tokenArr.includes(this.m_lex.lookAhead(this.m_mode))) {
+            if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_ADD) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp10();
+                par0 = new MacroNumberExpr(par0.eval() + par1.eval());
+            }
+            else { // if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_MINUS)
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp10();
+                par0 = new MacroNumberExpr(par0.eval() - par1.eval());
+            }
         }
         return par0;
     }
     private parseExp10(): MacroExpr {
-        const par0 = this.parseExp11();
-        const op = this.m_lex.lookAhead(this.m_mode);
-        if (op === TokenType.OP_MOD) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp11();
-            return new MacroNumberExpr(par0.eval() % par1.eval());
-        }
-        else if (op === TokenType.OP_DIV) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp11();
-            return new MacroNumberExpr(par0.eval() / par1.eval());
-        }
-        else if (op === TokenType.OP_MUL) {
-            this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp11();
-            return new MacroNumberExpr(par0.eval() * par1.eval());
+        let par0 = this.parseExp11();
+        const tokenArr = [TokenType.OP_MOD, TokenType.OP_DIV, TokenType.OP_MUL];
+        while (tokenArr.includes(this.m_lex.lookAhead(this.m_mode))) {
+            if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_MOD) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp11();
+                par0 = new MacroNumberExpr(par0.eval() % par1.eval());
+            }
+            else if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_DIV) {
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp11();
+                par0 = new MacroNumberExpr(par0.eval() / par1.eval());
+            }
+            else { // if (this.m_lex.lookAhead(this.m_mode) === TokenType.OP_MUL)
+                this.m_lex.nextToken(this.m_mode);
+                const par1 = this.parseExp11();
+                par0 = new MacroNumberExpr(par0.eval() * par1.eval());
+            }
         }
         return par0;
     }
@@ -306,17 +306,17 @@ export class MacroParser {
         const op = this.m_lex.lookAhead(this.m_mode);
         if (op === TokenType.OP_NOT) {
             this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp12();
+            const par1 = this.parseExp11();
             return new MacroNumberExpr(par1.eval() === 0 ? 1 : 0);
         }
         else if (op === TokenType.OP_UNARY_PLUS) {
             this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp12();
+            const par1 = this.parseExp11();
             return new MacroNumberExpr(par1.eval());
         }
         else if (op === TokenType.OP_UNARY_MINUS) {
             this.m_lex.nextToken(this.m_mode);
-            const par1 = this.parseExp12();
+            const par1 = this.parseExp11();
             return new MacroNumberExpr(-par1.eval());
         }
         const par1 = this.parseExp12();

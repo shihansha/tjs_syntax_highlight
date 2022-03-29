@@ -23,13 +23,14 @@ import {
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
-import { ILexer } from './interfaces/ILexer';
-import { Lexer } from './lexer/lexer';
-import { TokenType } from './types/tokenType';
-import { Token } from './types/token';
 import { LexerTester } from './test/lexerTester';
 import { IRange } from './interfaces/IRange';
 import { Preprocessor } from './preprocessor/preprocessor';
+import { debounce, debounceTime, Subject } from 'rxjs';
+import { Parser } from './parser/parser';
+import { Lexer } from './lexer/lexer';
+import { IDiagnostic } from './interfaces/IDiagnostic';
+import { AstWalker } from './utils/astWalker';
 
 interface InactiveRegionParams {
     range: IRange[],
@@ -150,22 +151,31 @@ documents.onDidClose(e => {
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
+const $onDidChange = new Subject<TextDocument>();
 documents.onDidChangeContent(change => {
-	validateTextDocument(change.document);
+	$onDidChange.next(change.document);
 });
+$onDidChange.pipe(
+	debounceTime(1000)
+).subscribe(
+	validateTextDocument
+);
 
-const lexTester = new LexerTester();
-
+const astWalker = new AstWalker();
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	const preProcessResult = new Preprocessor(textDocument.uri, textDocument.getText(), {}).run();
-	const lexProblems = lexTester.lexDocument(textDocument.uri, preProcessResult.chunk);
+	const lexer = new Lexer(textDocument.uri, preProcessResult.chunk);
+	const parser = new Parser(textDocument.uri, lexer);
+	const ast = parser.parse();
+	const lexDiag = parser.tokens.filter(t => t.diagnostic !== undefined).map(t => IDiagnostic.create(t.range, t.diagnostic!));
+	astWalker.updateEntry(textDocument.uri, parser.tokens, ast);
 	connection.sendNotification(KrkrNotificationType.InactiveRegionNotification, {
 		fileUri: textDocument.uri,
 		range: preProcessResult.disabledArea
 	});
 	connection.sendDiagnostics({
 		uri: textDocument.uri,
-		diagnostics: preProcessResult.diagnostics.concat(lexProblems)
+		diagnostics: preProcessResult.diagnostics.concat(lexDiag).concat(parser.errorStack)
 	});
 
 	// // In this simple example we get the settings for every validate run.
@@ -241,12 +251,16 @@ connection.onCompletion(
 
 connection.onHover(
 	(_hoverParams: HoverParams) => {
-		const query = lexTester.queryDocument(_hoverParams.textDocument.uri, _hoverParams.position);
+		let sb: string[] = [];
+		const query = astWalker.queryToken(_hoverParams.textDocument.uri, _hoverParams.position);
 		if (query) {
+			sb.push(JSON.stringify({range: query.range, diagnostic: query.diagnostic, type: query.type, value: query.value}));
+			const parents = astWalker.walkAst(query);
+			sb = sb.concat(parents.map(p => p.constructor.name));
 			return {
 				contents: {
 					kind: MarkupKind.PlainText,
-					value: JSON.stringify(query)
+					value: `entries: ${sb.length}\n\n` + sb.join("\n\n")
 				}
 			}
 		}

@@ -94,7 +94,6 @@ export class Preprocessor {
         while (this.m_head < this.m_chunk.length) {
             const c = this.m_chunk[this.m_head];
             this.emitIdentity(1);
-            this.m_head++;
             if (c === "\n") {
                 break;
             }

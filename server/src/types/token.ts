@@ -1,3 +1,4 @@
+import { Node } from "../ast/node";
 import { IRange } from "../interfaces/IRange";
 import { TokenType } from "./tokenType";
 
@@ -9,4 +10,5 @@ export class Token<T extends TokenType = TokenType> {
         public readonly diagnostic?: string,
     ) { }
     
+    public owner?: Node;
 }
