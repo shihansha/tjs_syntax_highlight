@@ -430,7 +430,7 @@ export class Parser {
 
     private exprUnary(mode: LexerMode): Node.Expr {
         const ahead = this.lookAhead(mode);
-        const ops = [TokenType.OP_NOT, TokenType.OP_BNOT, TokenType.OP_DEC, TokenType.OP_INC, TokenType.OP_NEW, TokenType.OP_INVALIDATE, TokenType.OP_ISVALID, TokenType.OP_DELETE, TokenType.OP_TYPEOF, TokenType.OP_CHAR_ENCODE, TokenType.OP_CHAR_DECODE, TokenType.OP_UNARY_PLUS, TokenType.OP_UNARY_MINUS, TokenType.OP_PROPERTY_GETOBJ, TokenType.OP_PROPERTY_CALLOBJ, TokenType.OP_INSTANCEOF, TokenType.OP_INCONTEXTOF];
+        const ops = [TokenType.OP_NOT, TokenType.OP_BNOT, TokenType.OP_DEC, TokenType.OP_INC, TokenType.OP_NEW, TokenType.OP_INVALIDATE, TokenType.OP_ISVALID, TokenType.OP_DELETE, TokenType.OP_TYPEOF, TokenType.OP_CHAR_ENCODE, TokenType.OP_CHAR_DECODE, TokenType.OP_UNARY_PLUS, TokenType.OP_UNARY_MINUS, TokenType.OP_PROPERTY_GETOBJ, TokenType.OP_PROPERTY_CALLOBJ, TokenType.OP_INSTANCEOF, TokenType.OP_INCONTEXTOF, TokenType.OP_MUL];
         if (ops.includes(ahead)) {
             const opcode = this.next(mode);
             const operand = this.exprSpecial(mode);
@@ -490,7 +490,11 @@ export class Parser {
         const op = this.lookAhead(mode);
         if (op === TokenType.SEP_LPAREN) {
             const opcode = this.next(mode);
-            const operand1 = this.parseExpression(mode);
+            let operand1 = Node.LiteralNode.epsilon;
+            operand1.completed = true;
+            if (this.lookAhead() !== TokenType.SEP_RPAREN) {
+                operand1 = this.parListExpr(mode, TokenType.SEP_RPAREN, SKIP_UNTIL_GROUP.RPAREN_EXPECTED);
+            }
             if (!this.assertAndTake(TokenType.SEP_RPAREN, mode)) {
                 this.skipUntil(SKIP_UNTIL_GROUP.RPAREN_EXPECTED, mode);
                 this.skipIf([TokenType.SEP_RPAREN], mode);
@@ -550,39 +554,17 @@ export class Parser {
     private exprArr(mode: LexerMode): Node.Expr {
         this.next(mode);
         const arr = new Node.ArrayExpr();
-        if (this.lookAhead(mode) === TokenType.SEP_RBRACK) {
-            arr.completed = true;
-            return arr;
-        }
-
-        while (true) {
-            if (this.lookAhead(mode) === TokenType.EOF) {
+        const parList = this.parListExpr(mode, TokenType.SEP_RBRACK, SKIP_UNTIL_GROUP.RBRACK_EXPECTED);
+        arr.entries = parList;
+        parList.parent = arr;
+        if (!this.assertAndTake(TokenType.SEP_RBRACK, mode)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.RBRACK_EXPECTED, mode);
+            if (!this.skipIf([TokenType.SEP_RBRACK], mode)) {
                 return arr;
             }
-            
-            const expr = this.parseExpression(mode);
-            expr.parent = arr;
-            arr.entries.push(expr);
-            if (!expr.completed) {
-                this.skipUntil(SKIP_UNTIL_GROUP.IN_ARRAY, mode);
-                if (this.lookAhead(mode) !== TokenType.SEP_RBRACK && this.lookAhead(mode) !== TokenType.SEP_COMMA) {
-                    return arr;
-                }
-            }
-
-            if (this.lookAhead(mode) !== TokenType.SEP_COMMA) {
-                if (!this.assertAndTake(TokenType.SEP_RBRACK, mode)) {
-                    this.skipUntil(SKIP_UNTIL_GROUP.IN_ARRAY, mode);
-                    this.skipIf([TokenType.SEP_RBRACK], mode);
-                    return arr;
-                }
-                arr.completed = true;
-                return arr;
-            }
-            else {
-                this.next(mode);
-            }
         }
+        arr.completed = parList.completed;
+        return arr;
     }
 
     private exprDict(mode: LexerMode): Node.Expr {
@@ -594,43 +576,73 @@ export class Parser {
         }
 
         let count = 0;
+        let expectSep = false;
+
+        const parList = new Node.ParListNode();
+        dict.entries = parList;
+        parList.parent = dict;
+
         while (true) {
             if (this.lookAhead(mode) === TokenType.EOF) {
                 return dict;
             }
-            
-            const expr = this.parseExpression(mode);
-            expr.parent = dict;
-            dict.entries.push(expr);
-            count++;
-            if (!expr.completed) {
-                this.skipUntil(SKIP_UNTIL_GROUP.IN_DICT, mode);
-                if (this.lookAhead(mode) !== TokenType.SEP_RBRACK && this.lookAhead(mode) !== TokenType.SEP_COMMA) {
-                    return dict;
-                }
-            }
-
-            if (this.lookAhead(mode) !== TokenType.SEP_COMMA || this.lookAhead(mode) !== TokenType.SEP_RARRAW) {
-                if (this.lookAhead(mode) !== TokenType.SEP_RBRACK) {
-                    this.skipUntil(SKIP_UNTIL_GROUP.IN_DICT, mode);
-                    this.skipIf([TokenType.SEP_RBRACK], mode);
-                    return dict;
+            if (this.lookAhead(mode) === TokenType.SEP_COMMA
+                || this.lookAhead(mode) === TokenType.SEP_RARRAW) {
+                if (!expectSep) {
+                    count++;
+                    const emptyParEntry = new Node.ParEntryNode();
+                    emptyParEntry.parType = Node.ParEntryNode.ParEntryType.Empty;
+                    parList.params.push(emptyParEntry);
+                    emptyParEntry.parent = parList;
                 }
                 const tok = this.next(mode);
-                if (count % 2 !== 0) {
-                    this.errorStack.push(IDiagnostic.create(tok.range, "unmatched dict entry detected"));
+                if (tok.type === TokenType.SEP_RARRAW && (count % 2 === 0)) {
+                    this.errorStack.push(IDiagnostic.create(tok.range, "should use ','"));
                 }
-                dict.completed = true;
-                return dict;
+
+                expectSep = false;
+                continue;
+            }
+            if (this.lookAhead(mode) === TokenType.SEP_RBRACK) {
+                parList.completed = true;
+                break;
+            }
+            count++;
+            expectSep = true;
+            if (this.lookAhead(mode) === TokenType.VARARG) {
+                this.next(mode);
+                const varargEntry = new Node.ParEntryNode();
+                varargEntry.parType = Node.ParEntryNode.ParEntryType.UnnamedArgs;
+                parList.params.push(varargEntry);
+                varargEntry.parent = parList;
+            }
+            else if (this.lookAhead(mode) === TokenType.CALLERARG) {
+                this.next(mode);
+                const callerargEntry = new Node.ParEntryNode();
+                callerargEntry.parType = Node.ParEntryNode.ParEntryType.CallerArgs;
+                parList.params.push(callerargEntry);
+                callerargEntry.parent = parList;
             }
             else {
-                const tok = this.next(mode);
-                if (tok.type === TokenType.SEP_RARRAW && count % 2 !== 1) {
-                    this.errorStack.push(IDiagnostic.create(tok.range, "',' expected"));
+                const exprEntry = new Node.ParEntryNode();
+                const expr = this.exprAssign(mode);
+                exprEntry.expr = expr;
+                exprEntry.completed = expr.completed;
+                expr.parent = exprEntry;
+                parList.params.push(exprEntry);
+                exprEntry.parent = parList;
+                if (!expr.completed) {
+                    this.skipUntil(SKIP_UNTIL_GROUP.RCURLY_EXPECTED, mode);
+                    if (this.lookAhead(mode) !== TokenType.SEP_RBRACK) {
+                        return dict;
+                    }
                 }
             }
         }
 
+        this.next(mode);
+        dict.completed = parList.completed;
+        return dict;
     }
 
     private exprTerminatedExpr(ter: TokenType, quoteType: TokenType.SEP_QUOTE_SINGLE | TokenType.SEP_QUOTE_DOUBLE, mode: LexerMode) {
@@ -639,7 +651,7 @@ export class Parser {
             this.next(mode);
             return Node.LiteralNode.illegal;
         }
-        const expr = this.parseExpression(mode);
+        const expr = this.parseExpression(LexerMode.TJS);
         if (!this.assertAndTake(ter, mode)) {
             this.skipUntil([ter, quoteType], mode);
             if (this.lookAhead(mode) === ter) {
@@ -706,6 +718,7 @@ export class Parser {
             id.completed = true;
             return id;
         }
+        this.assertAndTake(TokenType.IDENTIFIER, mode);
         return Node.IdentifierNode.illegal;
     }
 
@@ -717,8 +730,12 @@ export class Parser {
         }
         else if (ahead === TokenType.STRING) {
             const tok = this.next(mode);
-            return new Node.LiteralNode(tok.value, BasicTypes.String, tok);
+            const node = new Node.LiteralNode(tok.value, BasicTypes.String, tok);
+            node.completed = true;
+            return node;
         }
+        const msg = `Literal value expected.`;
+        this.errorStack.push(IDiagnostic.create(this.posAhead(), msg));
         return Node.LiteralNode.illegal;
     }
 
@@ -776,6 +793,60 @@ export class Parser {
                 return this.statExpr();
         }
     }
+    private parListExpr(mode: LexerMode, endTokenType: TokenType, skipList: readonly TokenType[]): Node.ParListNode {
+        const parList = new Node.ParListNode();
+        let expectSep = false;
+        while (true) {
+            if (this.lookAhead(mode) === TokenType.EOF) {
+                return parList;
+            }
+            if (this.lookAhead(mode) === TokenType.SEP_COMMA) {
+                this.next(mode);
+                if (!expectSep) {
+                    const emptyParEntry = new Node.ParEntryNode();
+                    emptyParEntry.parType = Node.ParEntryNode.ParEntryType.Empty;
+                    parList.params.push(emptyParEntry);
+                    emptyParEntry.parent = parList;
+                }
+                expectSep = false;
+                continue;
+            }
+            if (this.lookAhead(mode) === endTokenType) {
+                parList.completed = true;
+                return parList;
+            }
+            expectSep = true;
+            if (this.lookAhead(mode) === TokenType.VARARG) {
+                this.next(mode);
+                const varargEntry = new Node.ParEntryNode();
+                varargEntry.parType = Node.ParEntryNode.ParEntryType.UnnamedArgs;
+                parList.params.push(varargEntry);
+                varargEntry.parent = parList;
+            }
+            else if (this.lookAhead(mode) === TokenType.CALLERARG) {
+                this.next(mode);
+                const callerargEntry = new Node.ParEntryNode();
+                callerargEntry.parType = Node.ParEntryNode.ParEntryType.CallerArgs;
+                parList.params.push(callerargEntry);
+                callerargEntry.parent = parList;
+            }
+            else {
+                const exprEntry = new Node.ParEntryNode();
+                const expr = this.exprAssign(mode);
+                exprEntry.expr = expr;
+                exprEntry.completed = expr.completed;
+                expr.parent = exprEntry;
+                parList.params.push(exprEntry);
+                exprEntry.parent = parList;
+                if (!expr.completed) {
+                    this.skipUntil(skipList, mode);
+                    if (this.lookAhead(mode) !== endTokenType) {
+                        return parList;
+                    }
+                }
+            }
+        }
+    }
     private statExpr(): Node.Stat {
         const stat = new Node.ExprStat();
         const expr = this.parseExpression(LexerMode.TJS);
@@ -783,7 +854,7 @@ export class Parser {
         stat.expr = expr;
         if (!expr.completed) {
             this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
-            this.skipIf([TokenType.SEP_SEMI]);
+            this.assertAndTake(TokenType.SEP_SEMI);
             return stat;
         }
         if (!this.assertAndTake(TokenType.SEP_SEMI)) {
@@ -1138,6 +1209,7 @@ export class Parser {
                     }
                     else {
                         // emit an error
+                        this.errorStack.push(IDiagnostic.create(this.posAhead(), "identifier, '...', '*' or ')' expected"));
                         this.skipUntil([TokenType.IDENTIFIER, TokenType.VARARG]);
                         this.skipUntil(SKIP_UNTIL_GROUP.PARAM_LIST);
                         const commaExpected = this.lookAhead();
@@ -1330,6 +1402,7 @@ export class Parser {
             const expr = this.parseExpression(LexerMode.TJS);
             stat.hasInitializer = true;
             stat.initializer = expr;
+            expr.parent = stat;
             if (!expr.completed) {
                 this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
                 return stat;
@@ -1497,7 +1570,10 @@ export class Parser {
     private statBlock(): Node.BlockNode {
         const chunk = new Node.BlockNode(false);
 
-        this.next();
+        if (!this.assertAndTake(TokenType.SEP_LCURLY)) {
+            this.skipUntil(SKIP_UNTIL_GROUP.STAT_END);
+            return chunk;
+        }
         for (let ahead = this.lookAhead(); ahead !== TokenType.EOF; ahead = this.lookAhead()) {
             if (ahead === TokenType.SEP_RCURLY) {
                 this.next();
@@ -1518,12 +1594,7 @@ export class Parser {
     private statGlobal(): Node.BlockNode {
         const chunk = new Node.BlockNode(true);
         for (let ahead = this.lookAhead(); ahead !== TokenType.EOF; ahead = this.lookAhead()) {
-            if (ahead === TokenType.SEP_RCURLY) {
-                this.next();
-                chunk.completed = true;
-                return chunk;
-            }
-            const stat = this.parseStatement()
+            const stat = this.parseStatement();
             chunk.stats.push(stat);
             stat.parent = chunk;
         }

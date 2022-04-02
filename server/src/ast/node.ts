@@ -135,6 +135,23 @@ export class FunctionParameterNode extends Expr {
     initExpr?: Expr;
 }
 
+enum ParEntryType {
+    Normal,
+    UnnamedArgs,
+    CallerArgs,
+    Empty,
+}
+
+export class ParEntryNode extends Expr {
+    static readonly ParEntryType = ParEntryType;
+    parType?: ParEntryType;
+    expr?: Expr;
+}
+
+export class ParListNode extends Expr {
+    readonly params: ParEntryNode[] = [];
+}
+
 export class LiteralNode extends Expr {
     public constructor(value: string, type: BasicTypes.String, tok: Token);
     public constructor(value: number, type: BasicTypes.Integer | BasicTypes.Real, tok: Token);
@@ -151,8 +168,10 @@ export class LiteralNode extends Expr {
             tok.owner = this;
         }
     }
-
+    // illegal node
     static readonly illegal = new LiteralNode(undefined, BasicTypes.void);
+    // empty node
+    static readonly epsilon = new LiteralNode(undefined, BasicTypes.void);
 }
 
 export class IdentifierNode extends Expr {
@@ -201,9 +220,9 @@ export class InterpolatedString extends Expr {
 }
 
 export class ArrayExpr extends Expr {
-    public readonly entries: Expr[] = [];
+    public entries?: ParListNode;
 }
 
 export class DictExpr extends Expr {
-    public readonly entries: Expr[] = [];
+    public entries?: ParListNode;
 }
